@@ -1,5 +1,11 @@
 # QUSA/qusa/features/pipeline.py
 
+import pandas as pd 
+
+from qusa.features.overnight import OvernightCalculator
+from qusa.features.calendar import CalendarFeatures
+from qusa.features.technical import TechnicalIndicators
+
 class FeaturePipeline:
     """ 
     Pipeline to apply multiple feature calculations to financial time series data.
@@ -92,3 +98,4 @@ class FeaturePipeline:
         ])
 
         return features
+    
