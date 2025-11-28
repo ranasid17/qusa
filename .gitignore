@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# QUSA  --- IGNORE ---
+data/raw/* 
+data/processed/*

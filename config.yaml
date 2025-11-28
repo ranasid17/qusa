@@ -1,0 +1,26 @@
+# QUSA/config.yaml 
+
+# data settings 
+data: 
+  start_date: '2020-01-01'
+  end_date: '2023-01-01'
+  tickers: 
+    - AAPL
+  data_dir: '~/Projects/qusa/data/raw'
+  processed_data_dir: '~/Projects/qusa/data/processed'
+
+# feature engineering settings 
+features: 
+  rsi_window: 14
+  atr_window: 14
+  volume_ma_window: 20
+  rolling_window_52w: 252
+
+# analysis settings
+analysis: 
+  abnormal_threshold: 2.0               # abnormal Z score (>, < 2.0)
+  minimum_event_occurrences: 20         # minimum occurrences of an event for analysis 
+  strong_lift: 1.5                      # minimum lift for strong events
+  moderate_lift: 1.2                    # minimum lift for moderate events
+  
+  output_dir: '~/Projects/qusa/data/results/analysis'
