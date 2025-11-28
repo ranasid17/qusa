@@ -3,6 +3,7 @@
 import numpy as np 
 import pandas as pd
 
+
 class OvernightCalculator: 
     """ 
     Calculates overnight features for financial time series data.
