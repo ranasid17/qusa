@@ -1,0 +1,4 @@
+# QUSA/requirements.txt
+
+numpy 
+pandas 
