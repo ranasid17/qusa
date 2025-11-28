@@ -21,18 +21,23 @@ class FeaturePipeline:
 
         self.config = config or {}
 
-        self.overnight_calculator = OvernightCalculator(self.config.get(
-            'overnight', 
-            {}
-        ))
-        self.calendar_features = CalendarFeatures(self.config.get(
-            'calendar', 
-            {}
-        ))
-        self.technical_indicators = TechnicalIndicators(self.config.get(
-            'technical', 
-            {}
-        ))
+        self.overnight_calculator = OvernightCalculator(
+            date_col=self.config.get('date_col', 'date'), 
+            open_col=self.config.get('open_col', 'open'), 
+            close_col=self.config.get('close_col', 'close')
+        )
+        self.calendar_features = CalendarFeatures(
+            date_col=self.config.get('date_col', 'date')
+        )
+        self.technical_indicators = TechnicalIndicators(
+            config=self.config.get('technical_params', {}), 
+            date_col=self.config.get('date_col', 'date'), 
+            open_col=self.config.get('open_col', 'open'), 
+            close_col=self.config.get('close_col', 'close'), 
+            high_col=self.config.get('high_col', 'high'), 
+            low_col=self.config.get('low_col', 'low'), 
+            volume_col=self.config.get('volume_col', 'volume')
+        )
 
 
     def run(self, df): 
@@ -50,13 +55,16 @@ class FeaturePipeline:
 
         # Step 1) Calculate overnight features
         df_mod = self.overnight_calculator.calculate_overnight_delta(df_mod)
-        df_mod = self.overnight_calculator.identify_abnormal_delta(df_mod)
+        df_mod = self.overnight_calculator.identify_abnormal_delta(
+            df_mod, 
+            threshold=self.config.get('overnight', {}).get('abnormal_threshold', 2.0)
+        )
 
         # Step 2) Calculate technical indicators
-        df_mod = self.technical_indicators.calculate_all_technical_indicators(df_mod)
+        df_mod = self.technical_indicators.add_all(df_mod)
 
         # Step 3) Calculate calendar features
-        df_mod = self.calendar_features.label_all_calendar_features(df_mod)
+        df_mod = self.calendar_features.add_all(df_mod)
 
         return df_mod
     
