@@ -19,8 +19,7 @@ class CalendarFeatures:
         self.date = date_col
 
 
-    @staticmethod
-    def label_all_calendar_features(self, df): 
+    def add_all(self, df): 
         """ 
         Label all calendar features. 
         
@@ -38,7 +37,6 @@ class CalendarFeatures:
         return df_mod
 
 
-    @staticmethod
     def label_day_of_week(self, df): 
         """ 
         Label day of week and one-hot encode. 
@@ -66,7 +64,6 @@ class CalendarFeatures:
         return df_mod 
     
 
-    @staticmethod
     def label_month_of_year(self, df): 
         """ 
         Label month of year and one-hot encode.
@@ -101,7 +98,6 @@ class CalendarFeatures:
         return df_mod 
     
 
-    @staticmethod
     def label_start_end_of_month(self, df): 
         """ 
         Label first, final 5 days of each month. 
