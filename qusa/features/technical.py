@@ -47,7 +47,7 @@ class TechnicalIndicators:
 
 
     @staticmethod
-    def calculate_all_technical_indicators(self, df): 
+    def add_all(self, df): 
         """ 
         Calculate all technical indicators. 
         
@@ -88,7 +88,7 @@ class TechnicalIndicators:
         df_mod = df.copy()   
 
         # calculate 20d moving average 
-        df_mod['avg_volume_20'] = df_mod['volume'].rolling(window=self.peroid_volume).mean()
+        df_mod['avg_volume_20'] = df_mod['volume'].rolling(window=self.period_volume).mean()
         # divide volume count by mean 
         df_mod['volume_ratio'] = df_mod['volume'] / df_mod['avg_volume_20']
         # label spikes greater than input threshold
