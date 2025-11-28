@@ -6,8 +6,8 @@ data:
   end_date: '2023-01-01'
   tickers: 
     - AAPL
-  data_dir: 'data/raw'
-  processed_data_dir: 'data/processed'
+  data_dir: '~/Projects/qusa/data/raw'
+  processed_data_dir: '~/Projects/qusa/data/processed'
 
 # feature engineering settings 
 features: 
@@ -23,4 +23,4 @@ analysis:
   strong_lift: 1.5                      # minimum lift for strong events
   moderate_lift: 1.2                    # minimum lift for moderate events
   
-  output_dir: 'results/analysis'
+  output_dir: '~/Projects/qusa/data/results/analysis'
