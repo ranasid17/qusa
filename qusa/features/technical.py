@@ -66,6 +66,7 @@ class TechnicalIndicators:
         df_mod = self.calculate_average_true_range(df_mod)
         df_mod = self.calculate_annual_min_max_proximity(df_mod)
         df_mod = self.calculate_intraday_momentum(df_mod)
+        df_mod = self.calculate_late_day_momentum(df_mod)
 
         return df_mod
     
