@@ -1,5 +1,6 @@
 # QUSA/requirements.txt
 
+# feature engineering 
 numpy 
 pandas 
 pyyaml 
