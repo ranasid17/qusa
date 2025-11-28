@@ -33,11 +33,14 @@ class TechnicalIndicators:
         """
         
         self.config = config or {}  
+
+        # periods from config with defaults if not found/specified
         self.period_rsi = self.config.get('rsi_window', 14)
         self.period_atr = self.config.get('atr_window', 14)
         self.period_volume = self.config.get('volume_ma_window', 20)
         self.period_rolling = self.config.get('rolling_window_52w', 252)
 
+        # column names 
         self.date = date_col
         self.open = open_col
         self.close = close_col
@@ -46,7 +49,6 @@ class TechnicalIndicators:
         self.volume = volume_col
 
 
-    @staticmethod
     def add_all(self, df): 
         """ 
         Calculate all technical indicators. 
@@ -71,7 +73,6 @@ class TechnicalIndicators:
         return df_mod
     
 
-    @staticmethod
     def calculate_volume_spike(self, df, threshold=2.0): 
         """ 
         Calculate volume spike. 
@@ -97,7 +98,6 @@ class TechnicalIndicators:
         return df_mod 
     
 
-    @staticmethod
     def calculate_rsi(self, df): 
         """ 
         Calculate relative strength indicator (RSI). 
@@ -129,8 +129,7 @@ class TechnicalIndicators:
         return df_mod 
     
 
-    @staticmethod
-    def calculate_average_true_range(self, df, period=14): 
+    def calculate_average_true_range(self, df): 
         """ 
         Calculate average true range (ATR). 
         
@@ -161,13 +160,12 @@ class TechnicalIndicators:
         daily_max_range = np.max(price_ranges, axis=1)
 
         # calculate 14d rolling max price change 
-        df_mod['atr'] = daily_max_range.rolling(window=period).mean() 
+        df_mod['atr'] = daily_max_range.rolling(window=self.period_atr).mean() 
         df_mod['atr_pct'] = (df_mod['atr'] / df_mod[self.close]) * 100 
 
         return df_mod
     
 
-    @staticmethod
     def calculate_annual_min_max_proximity(self, df): 
         """ 
         Calculate daily proximity to 52 wk high/low. 
@@ -202,7 +200,6 @@ class TechnicalIndicators:
         return df_mod 
     
 
-    @staticmethod
     def calculate_intraday_momentum(self, df, threshold=2.0): 
         """ 
         Calculate intraday momentum. 
@@ -230,7 +227,6 @@ class TechnicalIndicators:
         return df_mod 
     
 
-    @staticmethod
     def calculate_late_day_momentum(self, df): 
         """ 
         Calculate late day momentum. 
