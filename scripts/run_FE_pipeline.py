@@ -11,7 +11,9 @@ from datetime import datetime
 # add parent directory to sys.path for module imports
 sys.path.append(
     os.path.dirname(
-        os.path.abspath(__file__)
+        os.path.dirname(
+            os.path.abspath(__file__)
+        )
     )
 )
 
