@@ -121,10 +121,12 @@ def main():
     
     try:  # load config file 
         logger.info("Loading configuration file...")
+
         config = load_config("config.yaml")
+
         logger.info("✓ Configuration loaded successfully")
-        logger.info(f"  Data path: {config.get('data_path')}")
-        logger.info(f"  Output path: {config.get('output_path')}")
+        logger.info(f"  Data directory: {config['data']['data_dir']}")
+        logger.info(f"  Output directory: {config['data']['processed_data_dir']}")
 
     except Exception as e:  # unable to load config 
         logger.error(f"✗ Error loading configuration: {e}")
@@ -132,7 +134,13 @@ def main():
 
     try:  # load data 
         logger.info("Loading data...")
-        data_path = config.get('data_path')
+        data_path = config['data']['data_dir']
+        tickers = config['data']['tickers']
+
+        # for simplicity, process only the first ticker
+        ticker = tickers[0]  
+
+        data_path = os.path.join(data_path, f"{ticker}_2020-01-01_2024-12-23.csv")
 
         # handle case where path to data does not exist 
         if not os.path.exists(data_path): 
