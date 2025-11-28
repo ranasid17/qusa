@@ -209,3 +209,4 @@ __marimo__/
 
 # QUSA  --- IGNORE ---
 data/raw/* 
+data/processed/*
