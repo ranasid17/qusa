@@ -200,7 +200,7 @@ def main():
     logger.info(f"Input file: {config.get('data_path')}")
     logger.info(f"Output file: {output_path}")
     logger.info(f"Rows processed: {len(processed_data)}")
-    logger.info(f"Features created: {len(pipeline.get_feature_names())}")
+    logger.info(f"Features created: {len(fe_pipeline.get_feature_names())}")
     logger.info("=" * 80)
     logger.info("✓ Pipeline completed successfully!")
     logger.info("=" * 80)
