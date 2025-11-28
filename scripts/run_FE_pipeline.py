@@ -33,6 +33,8 @@ def setup_logger(name):
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+
 
     # create log directory if it doesn't exist
     log_dir = "logs"
@@ -134,7 +136,7 @@ def main():
 
     try:  # load data 
         logger.info("Loading data...")
-        data_path = config['data']['data_dir']
+        data_path = os.path.expanduser(config['data']['data_dir'])
         tickers = config['data']['tickers']
 
         # for simplicity, process only the first ticker
@@ -177,7 +179,19 @@ def main():
         logger.info("Running Feature Engineering Pipeline...")
 
         # initialize pipeline object and run on DataFrame
-        fe_pipeline = FeaturePipeline(config["fe_params"])
+        fe_pipeline = FeaturePipeline({
+            'date_col': 'date', 
+            'open_col': 'open', 
+            'close_col': 'close', 
+            'high_col': 'high', 
+            'low_col': 'low', 
+            'volume_col': 'volume',
+            'overnight': {
+                'abnormal_threshold': config["analysis"]["abnormal_threshold"]
+            }, 
+            'technical_params': config['features']
+        })
+
         processed_data = fe_pipeline.run(data)
 
         logger.info("Feature Engineering Pipeline completed successfully.")
@@ -191,7 +205,15 @@ def main():
     
     try:  # save processed data
         logger.info("Saving processed data...")
-        output_path = config.get('output_path', 'data/processed/output.csv')
+
+        # extract output path from config
+        processed_dir = os.path.expanduser(config['data']['processed_data_dir'])
+        os.makedirs(processed_dir, exist_ok=True)
+
+        output_path = os.path.join(
+            processed_dir, 
+            f"{ticker}_processed.csv"
+        )
 
         # create output directory if it doesn't exist
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -207,10 +229,10 @@ def main():
     logger.info("=" * 80)
     logger.info("Pipeline Execution Summary")
     logger.info("=" * 80)
-    logger.info(f"Input file: {config.get('data_path')}")
+    logger.info(f"Input file: {data_path}")
     logger.info(f"Output file: {output_path}")
     logger.info(f"Rows processed: {len(processed_data)}")
-    logger.info(f"Features created: {len(fe_pipeline.get_feature_names())}")
+    logger.info(f"Features created: {len(fe_pipeline.get_engineered_features())}")
     logger.info("=" * 80)
     logger.info("✓ Pipeline completed successfully!")
     logger.info("=" * 80)
