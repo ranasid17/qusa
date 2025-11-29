@@ -18,6 +18,7 @@ qusa/
 │   │   ├── {ticker1}.csv
 │   │   ├── ... 
 │   │   └── {ticker2}.csv
+│   │
 │   ├── processed/                      # processed input data 
 │   │   ├── {ticker1}_processed.csv
 │   │   ├── {ticker2}_processed.csv 
@@ -33,3 +34,9 @@ qusa/
 │   │   ├── technicals.py               # technical indicator calculations 
 │   │   ├── calendar.py                 # calendar indicator calculations 
 │   │   └── pipeline.py                 # feature engineering script 
+│   │
+│   ├── analysis/                       # signal analysis 
+│   │   ├── __init__.py
+│   │   ├── signals.py                  # identify signals, calculate lift 
+│   │   ├── clustering.py               # unsupervised learning models 
+│   │   └── statistics.py               # identify statistically significant signals 
