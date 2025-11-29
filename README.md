@@ -4,6 +4,7 @@ Practice application
 
 ## Structure 
 
+```markdown
 qusa/ 
 │
 ├── README.md
@@ -40,3 +41,4 @@ qusa/
 │   │   ├── signals.py                  # identify signals, calculate lift 
 │   │   ├── clustering.py               # unsupervised learning models 
 │   │   └── statistics.py               # identify statistically significant signals 
+```
