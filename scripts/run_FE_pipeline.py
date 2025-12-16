@@ -142,7 +142,7 @@ def main():
         # for simplicity, process only the first ticker
         ticker = tickers[0]  
 
-        data_path = os.path.join(data_path, f"{ticker}_2020-01-01_2024-12-23.csv")
+        data_path = os.path.join(data_path, f"{ticker}_2023-12-01_2025-12-01.csv")
 
         # handle case where path to data does not exist 
         if not os.path.exists(data_path): 
