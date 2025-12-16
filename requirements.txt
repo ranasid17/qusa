@@ -1,6 +1,12 @@
 # QUSA/requirements.txt
 
+# data retreival
+requests
+
 # feature engineering 
 numpy 
 pandas 
 pyyaml 
+
+# clustering
+scikit-learn
