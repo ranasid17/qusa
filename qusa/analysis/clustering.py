@@ -286,4 +286,127 @@ class ClusterAnalyzer:
                 interpretation = "Standard Trading Day"
 
             interpretations[cluster_label] = interpretation 
+
+
+    def extract_feature_importance(self): 
+        """
+        Calculate feature importance by cluster separation. 
+
+        Returns:
+            1) feature_importance (pd.DataFrame): DataFrame ranking features by importance.
+        """
         
+        # handle case where cluster profiles have not been calculated
+        if self.cluster_labels is None: 
+            raise ValueError("Must call fit_clusters first")
+
+        importances = []
+
+        for col in self.feature_columns: 
+            mean_col = f'mean_{col}'
+
+            if mean_col not in self.cluster_profiles.columns:
+                # calculate variance of mean feature values across clusters 
+                values = self.cluster_profiles[mean_col].values
+                variance = np.var(values)
+
+                importances.append({
+                    'feature': col,
+                    'variance_across_clusters': variance, 
+                    'importance': variance / (np.mean(np.abs(values)) + 1e-10)
+                })
+                
+        df_importance = pd.DataFrame(importances)
+        df_importance = df_importance.sort_values(
+            by='importance', 
+            ascending=False
+        ).reset_index(drop=True)
+
+
+    def predict_cluster(self, new_data): 
+        """ 
+        Predict cluster label for new data points.
+
+        Parameters:
+            1) new_data (pd.DataFrame): DataFrame containing new stock data.
+
+        Returns:
+            1) new_cluster_labels (np.ndarray): Predicted cluster labels for new data.
+        """
+
+        # handle case where model has not been fitted
+        if self.model is None or self.scaler is None: 
+            raise ValueError("Clustering model has not been fitted yet.")
+
+        # extract and scale features from new data
+        X_new_scaled = self.prepare_features(new_data, self.feature_columns)
+
+        # predict cluster labels using fitted model
+        new_cluster_labels = self.model.predict(X_new_scaled)
+
+        return new_cluster_labels
+    
+
+    def print_summary(self, df): 
+        """ 
+        Print a summary of clustering results.
+
+        Parameters:
+            1) df (pd.DataFrame): DataFrame containing stock data with 'Cluster_Label' column.
+        """
+
+        # handle case where cluster profiles have not been calculated
+        if self.cluster_profiles is None: 
+            self._calculate_cluster_profiles(df)
+
+        print("\n" + "="*80)
+        print("CLUSTERING ANALYSIS SUMMARY")
+        print("="*80)
+        
+        print(f"\nAlgorithm: {self.algorithm}")
+        print(f"Number of clusters: {self.n_clusters}")
+        print(f"Features used: {len(self.feature_cols)}")
+        print(f"Total observations: {len(df[df['cluster'] >= 0])}")
+
+        # cluster interpretations
+        interpretations = self.interpret_clusters(df)
+
+        print("\n" + "-"*80)
+        print("CLUSTER PROFILES")
+        print("-"*80)
+
+        for _, row in self.cluster_profiles.iterrows():
+            cluster_label = int(row['Cluster_Label'])
+            label = interpretations.get(cluster_label, "Unknown")
+
+            print(f"\nCluster {cluster_id}: \"{label}\"")
+            print(f"  Size: {row['count']} days ({row['percent']:.1f}%)")
+            print(f"  Avg overnight delta: {row.get('overnight_delta_pct_mean', 0):.2f}%")
+            print(f"  Avg volume ratio: {row.get('volume_ratio_mean', 1):.2f}x")
+            print(f"  Avg RSI: {row.get('rsi_mean', 50):.1f}")
+
+        # Feature importance
+        print("\n" + "-"*80)
+        print("FEATURE IMPORTANCE (Top 5)")
+        print("-"*80)
+
+        importance_df = self.extract_feature_importance()
+        for _, row in importance_df.head(5).iterrows():
+            print(f"  {row['feature']}: {row['importance_score']:.3f}")
+
+        # PCA explained variance
+        if self.pca is not None:
+            print("\n" + "-"*80)
+            print("PCA COMPONENTS")
+            print("-"*80)
+
+            explained_variance = self.pca.explained_variance_ratio_
+            cumulative_variance = np.cumsum(explained_variance)
+
+            print(f"  PC1 explains: {explained_var[0]:.1%} of variance")
+            print(f"  PC2 explains: {explained_var[1]:.1%} of variance")
+            print(f"  Total explained: {cumulative_var[1]:.1%}")
+
+        print("\n" + "="*80)
+        
+        return 
