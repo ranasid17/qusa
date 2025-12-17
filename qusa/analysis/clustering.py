@@ -403,9 +403,9 @@ class ClusterAnalyzer:
             explained_variance = self.pca.explained_variance_ratio_
             cumulative_variance = np.cumsum(explained_variance)
 
-            print(f"  PC1 explains: {explained_var[0]:.1%} of variance")
-            print(f"  PC2 explains: {explained_var[1]:.1%} of variance")
-            print(f"  Total explained: {cumulative_var[1]:.1%}")
+            print(f"  PC1 explains: {explained_variance[0]:.1%} of variance")
+            print(f"  PC2 explains: {explained_variance[1]:.1%} of variance")
+            print(f"  Total explained: {cumulative_variance[1]:.1%}")
 
         print("\n" + "="*80)
         
