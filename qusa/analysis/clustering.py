@@ -379,7 +379,7 @@ class ClusterAnalyzer:
             cluster_label = int(row['Cluster_Label'])
             label = interpretations.get(cluster_label, "Unknown")
 
-            print(f"\nCluster {cluster_id}: \"{label}\"")
+            print(f"\nCluster {cluster_label}: \"{label}\"")
             print(f"  Size: {row['count']} days ({row['percent']:.1f}%)")
             print(f"  Avg overnight delta: {row.get('overnight_delta_pct_mean', 0):.2f}%")
             print(f"  Avg volume ratio: {row.get('volume_ratio_mean', 1):.2f}x")
