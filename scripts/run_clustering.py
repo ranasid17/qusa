@@ -248,8 +248,9 @@ def plot_cluster_profiles(analyzer, paths, logger):
     ]
 
     # plotting code 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    cax = ax.matshow(heatmap_data, cmap='viridis')
+    fig_height = max(6, 0.5 * len(heatmap_data))  # dynamic figure height by map size
+    fig, ax = plt.subplots(figsize=(12, fig_height))
+    cax = ax.matshow(heatmap_data, cmap='viridis', aspect='auto')
     fig.colorbar(cax)
     ax.set_xlabel('Clusters', fontsize=12)
     ax.set_ylabel('Features', fontsize=12)
