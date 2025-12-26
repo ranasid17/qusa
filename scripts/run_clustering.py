@@ -16,6 +16,22 @@ sys.path.append(
 
 from qusa.analysis.clustering import ClusterAnalyzer
 
+
+def confirm_directory(path):
+    """
+    Confirm that a directory exists, creating it if necessary.
+
+    Parameters:
+        1) path (str): The directory path to confirm.
+    """
+
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    return
+
+
 def plot_elbow_curve(optimal_results): 
     """  
     Plots the elbow curve for clustering analysis.
@@ -30,9 +46,9 @@ def plot_elbow_curve(optimal_results):
 
     # inertia plot
     ax1.plot(
-        optimal_results['n_clusters'], 
+        optimal_results['k'], 
         optimal_results['inertia'], 
-        marker='bo-'
+        'bo-'
     )
     ax1.axvline(  
         x=optimal_results['optimal_k'], 
@@ -57,9 +73,9 @@ def plot_elbow_curve(optimal_results):
 
     # silhouette score plot
     ax2.plot(
-        optimal_results['n_clusters'], 
-        optimal_results['silhouette_scores'], 
-        marker='go-'
+        optimal_results['k'], 
+        optimal_results['silhouette_score'], 
+        'go-'
     )
     ax2.axvline(
         x=optimal_results['optimal_k'], 
@@ -84,7 +100,6 @@ def plot_elbow_curve(optimal_results):
 
     plt.tight_layout()
     plt.show()
-
     plt.savefig(
         '~/projects/QUSA/data/figures/elbow_curve.png',
         dpi=300, 
@@ -105,7 +120,7 @@ def plot_pca_clusters(data, pca_X, pca_model):
     """
 
     # copy data for plotting
-    data_filtered = data.loc[data['cluster'] > 0].copy()
+    data_filtered = data.loc[data['cluster'] != -1].copy()
     
     # plotting code 
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -137,7 +152,6 @@ def plot_pca_clusters(data, pca_X, pca_model):
     )
     plt.tight_layout()
     plt.show()
-
     plt.savefig(
         '~/projects/QUSA/data/figures/pca_clusters.png',
         dpi=300, 
@@ -179,6 +193,7 @@ def plot_cluster_profiles(analyzer):
     # plotting code 
     fig, ax = plt.subplots(figsize=(12, 6))
     cax = ax.matshow(heatmap_data, cmap='viridis')
+    fig.colorbar(cax)
     ax.set_xlabel('Clusters', fontsize=12)
     ax.set_ylabel('Features', fontsize=12)
     ax.set_title(
@@ -187,7 +202,6 @@ def plot_cluster_profiles(analyzer):
         fontweight='bold'
     )
     plt.tight_layout()
-    plt.colorbar(cax)
     plt.show()
     plt.savefig(
         '~/projects/QUSA/data/figures/cluster_profiles_heatmap.png',
@@ -207,17 +221,17 @@ def plot_cluster_time_series(data):
     """
     
     # copy data for plotting
-    data_filtered = data.loc[data['cluster'] >0].copy()
+    data_filtered = data.loc[data['cluster'] != -1].copy()
 
     # convert timestamp to datetime if not already
-    data_filtered['timestamp'] = pd.to_datetime(data_filtered['timestamp'])
+    data_filtered['date'] = pd.to_datetime(data_filtered['date'])
 
     # plotting code
-    fig, (ax1, ax2) = plt.subplots(figsize=(12, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
     ## plot 1: overnight delta vs cluster
     scatter = ax1.scatter(
-        data_filtered['timestamp'], 
+        data_filtered['date'], 
         data_filtered['overnight_delta'], 
         c=data_filtered['cluster'], 
         cmap='tab10', 
@@ -233,7 +247,7 @@ def plot_cluster_time_series(data):
         linewidth=1
     )
 
-    ax1.set_xlabel('Timestamp', fontsize=12)
+    ax1.set_xlabel('date', fontsize=12)
     ax1.set_ylabel('Overnight Delta', fontsize=12)
     ax1.set_title(
         'Overnight Delta vs Time by Cluster', 
@@ -242,7 +256,7 @@ def plot_cluster_time_series(data):
     )
 
     ## plot 2: cluster distribution over time
-    data_filtered['month'] = data_filtered['timestamp'].dt.to_period('M')  # label months 
+    data_filtered['month'] = data_filtered['date'].dt.to_period('M')  # label months 
     cluster_counts = data_filtered.groupby(  # group by month and cluster
         ['month', 'cluster']
     ).size().unstack(fill_value=0)
@@ -360,7 +374,7 @@ def main():
     
     try: 
         data = pd.read_csv(
-            '~/projects/QUSA/data/processed/overnight_data_processed.csv'
+            '~/projects/QUSA/data/processed/AMZN_processed.csv'
         )
         print("   Data loaded successfully.")
     except FileNotFoundError: 
@@ -368,6 +382,8 @@ def main():
         print("   Run 'python scripts/run_FE_pipeline.py' first")
         return 1
     
+    # confirm directory for figures
+    confirm_directory('~/projects/QUSA/data/figures/')
 
     # confirm datetime conversion
     if 'date' in data.columns:
@@ -377,7 +393,11 @@ def main():
     print("\n2. Performing clustering analysis...")
 
     analyzer = ClusterAnalyzer(n_clusters=4, algorithm='kmeans')
-    optimal_results = analyzer.find_optimal_clusters(data)
+    optimal_results = analyzer.find_optimal_clusters(
+        data, 
+        feature_cols=None, 
+        max_k=8
+    )
 
     print(f"   ✓ Optimal k: {optimal_results['optimal_k']}")
     print(f"   → Using k={analyzer.n_clusters} clusters")
@@ -389,14 +409,17 @@ def main():
     # fit clustering model
     print("\n4. Fitting clustering model...")
 
-    data_clustered = analyzer.fit_predict(data)
+    data_clustered = analyzer.fit_clusters(data, feature_cols=None)
 
     print(f"   ✓ Clustered {len(data_clustered[data_clustered['cluster']>=0])} days")
 
     # perform PCA for visualization
     print("\n5. Performing PCA for visualization...")
     
-    pca_X, pca_model = analyzer.perform_pca(data_clustered)
+    pca_X, pca_model = analyzer.perform_pca(
+        data_clustered, 
+        feature_cols=analyzer.feature_columns
+    )
     
     print(f"   ✓ Explained variance: {pca_model.explained_variance_ratio_.sum():.1%}")
 
