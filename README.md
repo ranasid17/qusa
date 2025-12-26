@@ -16,8 +16,9 @@ qusa/
 │
 ├── data/                               # Storage for raw, processed data and models
 │   ├── raw/                            # Original input CSV files
-│   │   ├── {ticker1}.csv
-│   │   └── {ticker2}.csv
+│   │   ├── {ticker_1}.csv
+|   |   ├── ...
+│   │   └── {ticker_n}.csv
 │   │
 │   ├── processed/                      # Processed data ready for analysis
 │   │   ├── {ticker1}_processed.csv
