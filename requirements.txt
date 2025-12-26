@@ -9,4 +9,5 @@ pandas
 pyyaml 
 
 # clustering
+matplotlib
 scikit-learn
