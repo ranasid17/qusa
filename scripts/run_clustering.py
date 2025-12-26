@@ -6,15 +6,13 @@ import os
 import pandas as pd 
 import sys
 
-sys.path.append(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.abspath(__file__)
-        )
-    )
-)
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from qusa.analysis.clustering import ClusterAnalyzer
+from qusa.utils.config import load_config
 
 
 def confirm_directory(path):
@@ -32,13 +30,14 @@ def confirm_directory(path):
     return
 
 
-def plot_elbow_curve(optimal_results): 
+def plot_elbow_curve(optimal_results, paths): 
     """  
     Plots the elbow curve for clustering analysis.
 
     Parameters:
         1) optimal_results (dict): Dictionary containing the 
             optimal number of clusters and associated metrics.
+        2) paths (dict): Dictionary containing paths for saving figures.
     """
 
     # inertia plot
@@ -100,16 +99,14 @@ def plot_elbow_curve(optimal_results):
 
     plt.tight_layout()
     plt.show()
-    plt.savefig(
-        '~/projects/QUSA/data/figures/elbow_curve.png',
-        dpi=300, 
-        bbox_inches='tight'
-    )
+
+    fig_path = os.path.join(paths["figures_dir"], "elbow_curve.png")
+    plt.savefig(fig_path, dpi=300, bbox_inches="tight")
 
     return 
 
 
-def plot_pca_clusters(data, pca_X, pca_model): 
+def plot_pca_clusters(data, pca_X, pca_model, paths): 
     """
     Plot clusters in PC space. 
 
@@ -117,6 +114,7 @@ def plot_pca_clusters(data, pca_X, pca_model):
         1) data (pd.DataFrame): The original dataset with cluster labels.
         2) pca_X (np.ndarray): The PCA-transformed data.
         3) pca_model (PCA): The fitted PCA model.
+        4) paths (dict): Dictionary containing paths for saving figures.
     """
 
     # copy data for plotting
@@ -152,22 +150,22 @@ def plot_pca_clusters(data, pca_X, pca_model):
     )
     plt.tight_layout()
     plt.show()
-    plt.savefig(
-        '~/projects/QUSA/data/figures/pca_clusters.png',
-        dpi=300, 
-        bbox_inches='tight'
-    )
+    
+    fig_path = os.path.join(paths["figures_dir"], "pca_clusters.png")
+    plt.savefig(fig_path, dpi=300, bbox_inches="tight")
+
 
     return 
 
 
-def plot_cluster_profiles(analyzer): 
+def plot_cluster_profiles(analyzer, paths): 
     """
     Plot heatmaps of cluster profiles.
 
     Parameters:
         1) analyzer (ClusterAnalyzer): ClusterAnalyzer instance 
             with clustering results.
+        2) paths (dict): Dictionary containing paths for saving figures.
     """
 
     profiles = analyzer.cluster_profiles
@@ -203,21 +201,20 @@ def plot_cluster_profiles(analyzer):
     )
     plt.tight_layout()
     plt.show()
-    plt.savefig(
-        '~/projects/QUSA/data/figures/cluster_profiles_heatmap.png',
-        dpi=300, 
-        bbox_inches='tight'
-    )
+
+    fig_path = os.path.join(paths["figures_dir"], "cluster_profiles_heatmap.png")
+    plt.savefig(fig_path, dpi=300, bbox_inches="tight")
 
     return
 
 
-def plot_cluster_time_series(data): 
+def plot_cluster_time_series(data, paths): 
     """
     Plot time series of cluster distributions.
 
     Parameters:
         1) data (pd.DataFrame): The original dataset with cluster labels and timestamps.
+        2) paths (dict): Dictionary containing paths for saving figures.
     """
     
     # copy data for plotting
@@ -287,11 +284,10 @@ def plot_cluster_time_series(data):
 
     plt.tight_layout()
     plt.show()
-    plt.savefig(
-        '~/projects/QUSA/data/figures/cluster_time_series.png',
-        dpi=300, 
-        bbox_inches='tight'
-    )
+
+    fig_path = os.path.join(paths["figures_dir"], "cluster_time_series.png")
+    plt.savefig(fig_path, dpi=300, bbox_inches="tight")
+
 
     return
 
@@ -365,17 +361,24 @@ def main():
     Main function to run clustering analysis and visualizations.
     """
 
+    config = load_config("~/Projects/qusa/config.yaml")
+
+    data_cfg = config["data"]
+    paths = data_cfg["paths"]
+
+
     print("="*80)
     print("CLUSTERING ANALYSIS FOR OVERNIGHT TRADING")
     print("="*80)
     
     # Load processed data
     print("\n1. Loading processed data...")
-    
     try: 
-        data = pd.read_csv(
-            '~/projects/QUSA/data/processed/AMZN_processed.csv'
-        )
+        processed_dir = paths["processed_data_dir"]
+        ticker = data_cfg["tickers"][0]
+
+        data_path = os.path.join(processed_dir, f"{ticker}_processed.csv")
+        data = pd.read_csv(data_path)
         print("   Data loaded successfully.")
     except FileNotFoundError: 
         print("   ERROR: Processed data file not found.")
@@ -383,7 +386,8 @@ def main():
         return 1
     
     # confirm directory for figures
-    confirm_directory('~/projects/QUSA/data/figures/')
+    confirm_directory(os.path.join(paths["figures_dir"], "dummy.txt"))
+
 
     # confirm datetime conversion
     if 'date' in data.columns:
@@ -391,7 +395,6 @@ def main():
 
     # find optimal clusters and fit model
     print("\n2. Performing clustering analysis...")
-
     analyzer = ClusterAnalyzer(n_clusters=4, algorithm='kmeans')
     optimal_results = analyzer.find_optimal_clusters(
         data, 
@@ -404,30 +407,26 @@ def main():
     
     # plot elbow curve
     print("\n3. Generating elbow curve...")
-    plot_elbow_curve(optimal_results)
+    plot_elbow_curve(optimal_results, paths)
 
     # fit clustering model
     print("\n4. Fitting clustering model...")
-
     data_clustered = analyzer.fit_clusters(data, feature_cols=None)
-
     print(f"   ✓ Clustered {len(data_clustered[data_clustered['cluster']>=0])} days")
 
     # perform PCA for visualization
     print("\n5. Performing PCA for visualization...")
-    
     pca_X, pca_model = analyzer.perform_pca(
         data_clustered, 
         feature_cols=analyzer.feature_columns
     )
-    
     print(f"   ✓ Explained variance: {pca_model.explained_variance_ratio_.sum():.1%}")
 
     # visualize 
     print("\n6. Generating visualizations...")
-    plot_pca_clusters(data_clustered, pca_X, pca_model)
-    plot_cluster_profiles(analyzer)
-    plot_cluster_time_series(data_clustered)
+    plot_pca_clusters(data_clustered, pca_X, pca_model, paths)
+    plot_cluster_profiles(analyzer, paths)
+    plot_cluster_time_series(data_clustered, paths)
 
     # print summary 
     print("\n7. Cluster Summary:")
@@ -439,10 +438,12 @@ def main():
 
     # save clustered data
     print("\n9. Saving clustered data...")
-    data_clustered.to_csv(
-        '~/projects/QUSA/data/processed/overnight_data_clustered.csv',
-        index=False
+    clustered_path = os.path.join(
+        paths["processed_data_dir"],
+        "AMZN_processed_clustered.csv"
     )
+    data_clustered.to_csv(clustered_path, index=False)
+
     print("   ✓ Clustered data saved.")
 
     # Final summary
