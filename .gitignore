@@ -211,4 +211,4 @@ __marimo__/
 data/raw/* 
 data/processed/*
 data/figures/*
-models/*
+models/*.DS_Store
