@@ -7,38 +7,44 @@ Practice application
 ```markdown
 qusa/ 
 │
-├── README.md
+├── README.md                           # Project overview and instructions
 ├── requirements.txt                    # Python dependencies 
-├── setup.py                            # package installation 
-├── config.yaml                         # configuration settings 
-├── .env                                # secrets file 
-├── .gitignore 
+├── setup.py                            # Package installation script
+├── config.yaml                         # Configuration settings (paths, tickers, etc.)
+├── .env                                # Environment variables and secrets
+├── .gitignore                          # Files to ignore in git
 │
-├── data/ 
-│   ├── raw/                            # original input data 
+├── data/                               # Storage for raw, processed data and models
+│   ├── raw/                            # Original input CSV files
 │   │   ├── {ticker1}.csv
-│   │   ├── ... 
 │   │   └── {ticker2}.csv
 │   │
-│   ├── processed/                      # processed input data 
+│   ├── processed/                      # Processed data ready for analysis
 │   │   ├── {ticker1}_processed.csv
-│   │   ├── {ticker2}_processed.csv 
-│   └── models/                         # trained ML models 
+│   │   └── {ticker2}_processed.csv 
+│   │
+│   └── models/                         # Saved ML models
 │       └── cluster.pkl                 
 │
-├── qusa/ 
+├── qusa/                               # Main Python package
 │   ├── __init__.py 
 │   │
-│   ├── features/                       # feature engineering 
+│   ├── features/                       # Feature engineering
 │   │   ├── __init__.py 
-│   │   ├── overnight.py                # overnight change calculations 
-│   │   ├── technicals.py               # technical indicator calculations 
-│   │   ├── calendar.py                 # calendar indicator calculations 
-│   │   └── pipeline.py                 # feature engineering script 
+│   │   ├── overnight.py                # Overnight change calculations
+│   │   ├── technicals.py               # Technical indicator calculations
+│   │   ├── calendar.py                 # Calendar/temporal features
+│   │   └── pipeline.py                 # Complete feature pipeline
 │   │
-│   ├── analysis/                       # signal analysis 
+│   ├── analysis/                       # Signal analysis
 │   │   ├── __init__.py
-│   │   ├── signals.py                  # identify signals, calculate lift 
-│   │   ├── clustering.py               # unsupervised learning models 
-│   │   └── statistics.py               # identify statistically significant signals 
+│   │   ├── signals.py                  # Signal identification and lift calculation
+│   │   ├── clustering.py               # Unsupervised learning and clustering
+│   │   └── statistics.py               # Statistical analysis of signals
+│
+├── scripts/                            # Standalone scripts for running analysis
+|   ├── __init__.py
+|   ├── get_most_recent_day.py          # Get most recent OHLCV data for given ticker 
+│   ├── run_clustering.py               # Run clustering pipeline, visualize results
+|   └── run_FE_pipeline.py              # Run feature engineering pipeline 
 ```
