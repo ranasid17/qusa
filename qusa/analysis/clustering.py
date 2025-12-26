@@ -38,7 +38,7 @@ class ClusterAnalyzer:
         self.cluster_profiles = None
 
     
-    def prepare_features(self, df, feature_cols): 
+    def prepare_features(self, df, feature_cols=None): 
         """ 
         Prepare features for clustering.
 
@@ -49,6 +49,19 @@ class ClusterAnalyzer:
         Returns; 
             1) tuple: (scaled_features, feature_names, valid_indices)
         """
+
+        # handle case where no feature columns are provided
+        if feature_cols is None or len(feature_cols) == 0:
+            feature_cols = [
+                'overnight_delta_pct',
+                'intraday_return',
+                'volume_ratio',
+                'rsi',
+                'atr_pct',
+                'close_position',
+                '52_week_high_proximity',
+                '52_week_low_proximity'
+            ]
 
         # filter to available columns 
         available_cols = [col for col in feature_cols if col in df.columns]
@@ -66,25 +79,29 @@ class ClusterAnalyzer:
         # check if enough data points remain after NaN removal
         if len(df_features) < self.n_clusters: 
             raise ValueError(
-                f"Not enough data points NaN remove (({len(df_features)})"
+                f"Not enough valid samples ({len(df_features)})"
                 f"for {self.n_clusters} clusters."
             )
         
-        # standardize features
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(df_features)
-
+        # handle case where no scaler exists yet
+        if self.scaler is None: 
+            self.scaler = StandardScaler()  
+            X_scaled = self.scaler.fit_transform(df_features) 
+        # otherwise use existing scaler
+        else: 
+            X_scaled = self.scaler.transform(df_features)
+        
         return X_scaled, available_cols, df_features['index'].values
     
 
-    def find_optimal_clusters(self, df, feature_cols, max_k=10): 
+    def find_optimal_clusters(self, df, feature_cols=None, max_k=10): 
         """ 
         Find the optimal number of clusters using 
         elbow method and silhouette score.
 
         Parameters:
             1) X (np.ndarray): Scaled feature array.
-            3) feature_cols (list): List of feature column names.
+            3) feature_cols (list, opt): List of features for clustering.
             3) max_k (int): Maximum number of clusters to test.
 
 
@@ -104,7 +121,11 @@ class ClusterAnalyzer:
         # iterate across available cluster counts (k)
         for k in range(2, max_k + 1): 
             # perform k-means clustering with current k 
-            kmeans = KMeans(n_clusters=k, random_state=self.random_state)
+            kmeans = KMeans(
+                n_clusters=k, 
+                random_state=self.random_state,
+                n_init=10
+            )
             labels = kmeans.fit_predict(X)
             score = silhouette_score(X, labels)
 
@@ -119,7 +140,7 @@ class ClusterAnalyzer:
         delta_ratio = delta[:-1] / delta[1:]
         elbow_k = np.argmax(delta_ratio) + 2  # +2 to adjust for k=2 start 
 
-        results['optimal_k_elbow'] = elbow_k
+        results['optimal_k'] = elbow_k
         
         return results 
     
@@ -143,7 +164,8 @@ class ClusterAnalyzer:
         if self.algorithm == 'kmeans': 
             model = KMeans(
                 n_clusters=self.n_clusters, 
-                random_state=self.random_state
+                random_state=self.random_state, 
+                n_init=10
             )
         elif self.algorithm == 'dbscan': 
             model = DBSCAN(eps=0.5, min_samples=5)
@@ -160,8 +182,10 @@ class ClusterAnalyzer:
 
         # create modified DataFrame with cluster labels
         df_mod = df.copy()
-        df_mod['Cluster_Label'] = -1  # default label for NaN rows
-        df_mod.loc[valid_indices, 'Cluster_Label'] = cluster_labels
+        df_mod['cluster'] = -1  # default label for NaN rows
+        df_mod.loc[valid_indices, 'cluster'] = cluster_labels
+
+        self._calculate_cluster_profiles(df_mod)
 
         return df_mod
     
@@ -175,19 +199,19 @@ class ClusterAnalyzer:
         """ 
 
         # filter rows with valid cluster labels 
-        df_valid = df[df['Cluster_Label'] != -1]
+        df_valid = df[df['cluster'] != -1]
 
         # calculate mean feature values per cluster
-        cluster_profiles = df_valid.groupby('Cluster_Label')[self.feature_columns].mean()
+        cluster_profiles = df_valid.groupby('cluster')[self.feature_columns].mean()
 
         profiles = []
-        for cluster_label in sorted(df_valid['Cluster_Label'].unique()): 
+        for cluster_label in sorted(df_valid['cluster'].unique()): 
             # filter data to current cluster
-            cluster_data = df_valid[df_valid['Cluster_Label'] == cluster_label]
+            cluster_data = df_valid[df_valid['cluster'] == cluster_label]
 
             # store current cluster element count and proportion 
             profile = {
-                'Cluster_Label': cluster_label, 
+                'cluster': cluster_label, 
                 'count': len(cluster_data), 
                 'proportion': len(cluster_data) / len(df_valid)
             }
@@ -205,7 +229,7 @@ class ClusterAnalyzer:
         return 
     
 
-    def apply_pca(self, df, feature_cols, n_components=2): 
+    def perform_pca(self, df, feature_cols=None, n_components=2): 
         """ 
         Apply PCA to reduce feature dimensions.
 
@@ -262,7 +286,7 @@ class ClusterAnalyzer:
 
 
         for _, row in self.cluster_profiles.iterrows():
-            cluster_label = int(row['Cluster_Label'])
+            cluster_label = int(row['cluster'])
 
             # extract key characteristics for current cluster
             overnight = row.get('mean_overnight_delta_pct', 0)
@@ -285,7 +309,9 @@ class ClusterAnalyzer:
             else: 
                 interpretation = "Standard Trading Day"
 
-            interpretations[cluster_label] = interpretation 
+            interpretations[cluster_label] = interpretation
+
+        return interpretations 
 
 
     def extract_feature_importance(self): 
@@ -305,22 +331,31 @@ class ClusterAnalyzer:
         for col in self.feature_columns: 
             mean_col = f'mean_{col}'
 
-            if mean_col not in self.cluster_profiles.columns:
+            if mean_col in self.cluster_profiles.columns:
                 # calculate variance of mean feature values across clusters 
                 values = self.cluster_profiles[mean_col].values
                 variance = np.var(values)
+
+                # add epsilon to avoid division by zero
+                scale = np.mean(np.abs(values)) + 1e-10  
 
                 importances.append({
                     'feature': col,
                     'variance_across_clusters': variance, 
                     'importance': variance / (np.mean(np.abs(values)) + 1e-10)
                 })
-                
+
+            if not importances:
+                raise ValueError("No valid features found for importance calculation.")
+        
+        # convert list to DataFrame and sort by importance
         df_importance = pd.DataFrame(importances)
         df_importance = df_importance.sort_values(
             by='importance', 
             ascending=False
         ).reset_index(drop=True)
+
+        return df_importance
 
 
     def predict_cluster(self, new_data): 
@@ -365,7 +400,7 @@ class ClusterAnalyzer:
         
         print(f"\nAlgorithm: {self.algorithm}")
         print(f"Number of clusters: {self.n_clusters}")
-        print(f"Features used: {len(self.feature_cols)}")
+        print(f"Features used: {len(self.feature_columns)}")
         print(f"Total observations: {len(df[df['cluster'] >= 0])}")
 
         # cluster interpretations
@@ -376,14 +411,14 @@ class ClusterAnalyzer:
         print("-"*80)
 
         for _, row in self.cluster_profiles.iterrows():
-            cluster_label = int(row['Cluster_Label'])
+            cluster_label = int(row['cluster'])
             label = interpretations.get(cluster_label, "Unknown")
 
             print(f"\nCluster {cluster_label}: \"{label}\"")
-            print(f"  Size: {row['count']} days ({row['percent']:.1f}%)")
-            print(f"  Avg overnight delta: {row.get('overnight_delta_pct_mean', 0):.2f}%")
-            print(f"  Avg volume ratio: {row.get('volume_ratio_mean', 1):.2f}x")
-            print(f"  Avg RSI: {row.get('rsi_mean', 50):.1f}")
+            print(f"  Size: {row['count']} days ({row['proportion']*100:.1f}%)")
+            print(f"  Avg overnight delta: {row.get('mean_overnight_delta_pct', 0):.2f}%")
+            print(f"  Avg volume ratio: {row.get('mean_volume_ratio', 1):.2f}x")
+            print(f"  Avg RSI: {row.get('mean_rsi', 50):.1f}")
 
         # Feature importance
         print("\n" + "-"*80)
@@ -392,7 +427,7 @@ class ClusterAnalyzer:
 
         importance_df = self.extract_feature_importance()
         for _, row in importance_df.head(5).iterrows():
-            print(f"  {row['feature']}: {row['importance_score']:.3f}")
+            print(f"  {row['feature']}: {row['importance']:.3f}")
 
         # PCA explained variance
         if self.pca is not None:
