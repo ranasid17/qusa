@@ -1,26 +1,35 @@
-# QUSA/config.yaml 
+# QUSA/config.yaml
 
-# data settings 
-data: 
+# ------------------
+# Data settings
+# ------------------
+data:
   start_date: '2023-12-01'
   end_date: '2025-12-01'
-  tickers: 
-    - AMZN
-  data_dir: '~/Projects/qusa/data/raw'
-  processed_data_dir: '~/Projects/qusa/data/processed'
 
-# feature engineering settings 
-features: 
+  tickers:
+    - AMZN
+
+  paths:
+    raw_data_dir: '~/Projects/qusa/data/raw'
+    processed_data_dir: '~/Projects/qusa/data/processed'
+    figures_dir: '~/Projects/qusa/data/figures'
+    results_dir: '~/Projects/qusa/data/results'
+
+# ------------------
+# Feature engineering
+# ------------------
+features:
   rsi_window: 14
   atr_window: 14
   volume_ma_window: 20
   rolling_window_52w: 252
 
-# analysis settings
-analysis: 
-  abnormal_threshold: 2.0               # abnormal Z score (>, < 2.0)
-  minimum_event_occurrences: 20         # minimum occurrences of an event for analysis 
-  strong_lift: 1.5                      # minimum lift for strong events
-  moderate_lift: 1.2                    # minimum lift for moderate events
-  
-  output_dir: '~/Projects/qusa/data/results/analysis'
+# ------------------
+# Analysis settings
+# ------------------
+analysis:
+  abnormal_threshold: 2.0
+  minimum_event_occurrences: 20
+  strong_lift: 1.5
+  moderate_lift: 1.2
