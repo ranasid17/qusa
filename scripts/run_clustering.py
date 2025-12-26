@@ -515,7 +515,7 @@ def main():
     # load config
     try:
         logger.info("Loading configuration...")
-        config = load_config("~/Projects/qusa/config.yaml")
+        config = load_config("qusa/utils/config.yaml")
         data_cfg = config["data"]
         paths = data_cfg["paths"]
         logger.info("✓ Configuration loaded")
@@ -555,7 +555,7 @@ def main():
         # plot cluster elbow curve
         plot_elbow_curve(optimal_results, paths, logger)
 
-        data_clustered = analyzer.fit_clusters(data)
+        data_clustered = analyzer.fit_clusters(data, feature_cols=None)
         logger.info("✓ Clustering complete")
 
         # apply PCA for visualization
