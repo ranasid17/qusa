@@ -149,12 +149,12 @@ def plot_elbow_curve(optimal_results, paths, logger):
     ax2.legend()
 
     plt.tight_layout()
-    plt.show()
 
     fig_path = os.path.join(paths["figures_dir"], "elbow_curve.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
-
     logger.info(f"✓ Elbow curve saved → {fig_path}")
+
+    plt.show()
 
     return 
 
@@ -205,12 +205,12 @@ def plot_pca_clusters(data, pca_X, pca_model, paths, logger):
         fontweight='bold'
     )
     plt.tight_layout()
-    plt.show()
     
     fig_path = os.path.join(paths["figures_dir"], "pca_clusters.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
-
     logger.info(f"✓ PCA cluster plot saved → {fig_path}")
+
+    plt.show()
 
     return 
 
@@ -232,8 +232,7 @@ def plot_cluster_profiles(analyzer, paths, logger):
 
     # select feature columns
     feature_cols = [
-        col for col in profiles.columns 
-        if col.endswith('_mean') and col not in ['count', 'percent']
+        col for col in profiles.columns if col not in ['cluster', 'count', 'percent']
     ]
 
     # prepare data for heatmap
@@ -260,12 +259,12 @@ def plot_cluster_profiles(analyzer, paths, logger):
         fontweight='bold'
     )
     plt.tight_layout()
-    plt.show()
 
     fig_path = os.path.join(paths["figures_dir"], "cluster_profiles_heatmap.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
-
     logger.info(f"✓ Cluster profile heatmap saved → {fig_path}")
+
+    plt.show()
 
     return
 
@@ -348,12 +347,12 @@ def plot_cluster_time_series(data, paths, logger):
     )
 
     plt.tight_layout()
-    plt.show()
 
     fig_path = os.path.join(paths["figures_dir"], "cluster_time_series.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
-
     logger.info(f"✓ Cluster time series plot saved → {fig_path}")
+
+    plt.show()
     
     return
 
