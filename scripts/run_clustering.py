@@ -1,11 +1,13 @@
 # qusa/scripts/run_clustering.py
 
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd 
 import sys
 
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +15,52 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from qusa.analysis.clustering import ClusterAnalyzer
 from qusa.utils.config import load_config
+
+
+def setup_logger(name): 
+    """
+    Setup logger with console and file handlers. 
+    
+    Parameters:
+        1) name (str): Name of the logger.
+        
+    Returns:
+        1) logger (logging.Logger): Configured logger object.
+    """
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+
+
+    # create log directory if it doesn't exist
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+
+    # console handler 
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    console_handler.setFormatter(console_formatter)
+
+    # file handler
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_handler = logging.FileHandler(
+        f'{log_dir}/clustering_{timestamp}.log'
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_format = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    file_handler.setFormatter(file_format)
+
+    # add handlers to logger
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+
+    return logger
 
 
 def confirm_directory(path):
@@ -30,7 +78,7 @@ def confirm_directory(path):
     return
 
 
-def plot_elbow_curve(optimal_results, paths): 
+def plot_elbow_curve(optimal_results, paths, logger): 
     """  
     Plots the elbow curve for clustering analysis.
 
@@ -38,7 +86,10 @@ def plot_elbow_curve(optimal_results, paths):
         1) optimal_results (dict): Dictionary containing the 
             optimal number of clusters and associated metrics.
         2) paths (dict): Dictionary containing paths for saving figures.
+        3) logger (logging.Logger): Logger object for logging messages.
     """
+
+    logger.info("Generating elbow curve plot...")
 
     # inertia plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
@@ -103,10 +154,12 @@ def plot_elbow_curve(optimal_results, paths):
     fig_path = os.path.join(paths["figures_dir"], "elbow_curve.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
 
+    logger.info(f"✓ Elbow curve saved → {fig_path}")
+
     return 
 
 
-def plot_pca_clusters(data, pca_X, pca_model, paths): 
+def plot_pca_clusters(data, pca_X, pca_model, paths, logger): 
     """
     Plot clusters in PC space. 
 
@@ -115,7 +168,10 @@ def plot_pca_clusters(data, pca_X, pca_model, paths):
         2) pca_X (np.ndarray): The PCA-transformed data.
         3) pca_model (PCA): The fitted PCA model.
         4) paths (dict): Dictionary containing paths for saving figures.
+        5) logger (logging.Logger): Logger object for logging messages.
     """
+
+    logger.info("Generating PCA cluster plot...")
 
     # copy data for plotting
     data_filtered = data.loc[data['cluster'] != -1].copy()
@@ -154,11 +210,12 @@ def plot_pca_clusters(data, pca_X, pca_model, paths):
     fig_path = os.path.join(paths["figures_dir"], "pca_clusters.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
 
+    logger.info(f"✓ PCA cluster plot saved → {fig_path}")
 
     return 
 
 
-def plot_cluster_profiles(analyzer, paths): 
+def plot_cluster_profiles(analyzer, paths, logger): 
     """
     Plot heatmaps of cluster profiles.
 
@@ -166,7 +223,10 @@ def plot_cluster_profiles(analyzer, paths):
         1) analyzer (ClusterAnalyzer): ClusterAnalyzer instance 
             with clustering results.
         2) paths (dict): Dictionary containing paths for saving figures.
+        3) logger (logging.Logger): Logger object for logging messages.
     """
+
+    logger.info("Generating cluster profiles heatmap...")
 
     profiles = analyzer.cluster_profiles
 
@@ -205,17 +265,22 @@ def plot_cluster_profiles(analyzer, paths):
     fig_path = os.path.join(paths["figures_dir"], "cluster_profiles_heatmap.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
 
+    logger.info(f"✓ Cluster profile heatmap saved → {fig_path}")
+
     return
 
 
-def plot_cluster_time_series(data, paths): 
+def plot_cluster_time_series(data, paths, logger): 
     """
     Plot time series of cluster distributions.
 
     Parameters:
         1) data (pd.DataFrame): The original dataset with cluster labels and timestamps.
         2) paths (dict): Dictionary containing paths for saving figures.
+        3) logger (logging.Logger): Logger object for logging messages.
     """
+
+    logger.info("Generating cluster time series plots...")
     
     # copy data for plotting
     data_filtered = data.loc[data['cluster'] != -1].copy()
@@ -288,72 +353,152 @@ def plot_cluster_time_series(data, paths):
     fig_path = os.path.join(paths["figures_dir"], "cluster_time_series.png")
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
 
-
+    logger.info(f"✓ Cluster time series plot saved → {fig_path}")
+    
     return
 
 
-def analyze_clusters(data, analyzer): 
+def analyze_clusters(data, analyzer, logger): 
     """
-    Analyze characteristics of each cluster. 
+    Analyze and log characteristics of each cluster.
 
     Parameters:
-        1) data (pd.DataFrame): The original dataset with cluster labels.
-        2) analyzer (ClusterAnalyzer): ClusterAnalyzer instance 
-            with clustering results.
+        1) data (pd.DataFrame): Dataset with cluster labels.
+        2) analyzer (ClusterAnalyzer): Fitted clustering analyzer.
+        3) logger (logging.Logger): Logger instance.
     """
+
+    logger.info("=" * 80)
+    logger.info("DETAILED CLUSTER ANALYSIS")
+    logger.info("=" * 80)
 
     interpretations = analyzer.interpret_clusters(data)
 
-    print("\n" + "="*80)
-    print("DETAILED CLUSTER ANALYSIS")
-    print("="*80)
-
-
-    # iterate across clusters 
     for cluster_label, interpretation in interpretations.items():
-        # filter data for the current cluster
-        current_cluster_data = data.loc[data['cluster'] == cluster_label]
+        cluster_data = data.loc[data["cluster"] == cluster_label]
 
-        # skip empty clusters
-        if len(current_cluster_data) == 0:
-            continue  
+        if cluster_data.empty:
+            logger.debug(f"Cluster {cluster_label} is empty — skipping.")
+            continue
 
-        print(f"\n{'='*80}")
-        print(f"CLUSTER {cluster_label}: \"{interpretation}\"")
-        print(f"{'='*80}")
+        size = len(cluster_data)
+        pct = size / len(data) * 100
 
-        print(f"\nSize: {len(current_cluster_data)} days ({len(current_cluster_data)/len(data)*100:.1f}%)")
-        
-        print("\nKey Statistics:")
-        print(f"  Overnight Delta:")
-        print(f"    Mean: {current_cluster_data['overnight_delta_pct'].mean():.2f}%")
-        print(f"    Median: {current_cluster_data['overnight_delta_pct'].median():.2f}%")
-        print(f"    Std Dev: {current_cluster_data['overnight_delta_pct'].std():.2f}%")
-        
-        print(f"\n  Volume:")
-        print(f"    Mean Ratio: {current_cluster_data['volume_ratio'].mean():.2f}x")
-        print(f"    Spikes (>2x): {(current_cluster_data['volume_spike']==True).sum()} days")
-        
-        print(f"\n  RSI:")
-        print(f"    Mean: {current_cluster_data['rsi'].mean():.1f}")
-        print(f"    Oversold (<30): {(current_cluster_data['rsi']<30).sum()} days")
-        print(f"    Overbought (>70): {(current_cluster_data['rsi']>70).sum()} days")
+        logger.info("-" * 80)
+        logger.info(f"CLUSTER {cluster_label}: {interpretation}")
+        logger.info("-" * 80)
+        logger.info(f"Size: {size} days ({pct:.1f}%)")
+
+        # Overnight delta
+        logger.info("Overnight Delta:")
+        logger.info(
+            f"  Mean: {cluster_data['overnight_delta_pct'].mean():.2f}% | "
+            f"Median: {cluster_data['overnight_delta_pct'].median():.2f}% | "
+            f"Std: {cluster_data['overnight_delta_pct'].std():.2f}%"
+        )
+
+        # Volume
+        logger.info("Volume:")
+        logger.info(
+            f"  Mean Ratio: {cluster_data['volume_ratio'].mean():.2f}x | "
+            f"Spikes (>2x): {(cluster_data['volume_spike']).sum()} days"
+        )
+
+        # RSI
+        logger.info("RSI:")
+        logger.info(
+            f"  Mean: {cluster_data['rsi'].mean():.1f} | "
+            f"Oversold (<30): {(cluster_data['rsi'] < 30).sum()} | "
+            f"Overbought (>70): {(cluster_data['rsi'] > 70).sum()}"
+        )
+
+        # Abnormal moves
+        if "abnormal" in cluster_data.columns:
+            abnormal_rate = cluster_data["abnormal"].mean() * 100
+            logger.info(f"Abnormal Overnight Moves: {abnormal_rate:.1f}%")
+
+        # Day-of-week effects
+        if "day_of_week" in cluster_data.columns:
+            logger.info("Day of Week Distribution:")
+            dow_map = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu", 4: "Fri"}
+
+            dow_dist = (
+                cluster_data["day_of_week"]
+                .value_counts(normalize=True)
+                .sort_index()
+                * 100
+            )
+
+            for dow, pct in dow_dist.items():
+                if dow in dow_map:
+                    logger.info(f"  {dow_map[dow]}: {pct:.1f}%")
+
+    logger.info("=" * 80)
+    logger.info("END OF CLUSTER ANALYSIS")
+    logger.info("=" * 80)
+
+    return 
 
 
-        if 'abnormal' in current_cluster_data.columns:
-            abnormal_rate = current_cluster_data['abnormal'].mean() * 100
-            print(f"\n  Abnormal Overnight Moves: {abnormal_rate:.1f}%")
+def export_cluster_statistics(data, analyzer, paths, logger): 
+    """
+    Export cluster statistics to a CSV file.
 
-        if 'day_of_week' in current_cluster_data.columns:
-            # count distribution of days of the week
-            dow_counts = current_cluster_data['day_of_week'].value_counts(normalize=True) * 100
+    Parameters:
+        1) data (pd.DataFrame): Dataset with cluster labels.
+        2) analyzer (ClusterAnalyzer): Fitted clustering analyzer.
+        3) paths (dict): Dictionary containing paths for saving files.
+        4) logger (logging.Logger): Logger instance.
+    """
 
-            days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-            print(f"\n  Day of Week Distribution:")
+    logger.info("Exporting cluster statistics to CSV...")
+    
+    if hasattr(analyzer, "cluster_profiles"):
+        cluster_profiles = analyzer.cluster_profiles.copy()
+    else: 
+        cluster_profiles = pd.DataFrame()
 
-            for day_num, count in dow_counts.items():
-                if day_num < 5:
-                    print(f"    {days[day_num]}: {count} days ({count/len(current_cluster_data)*100:.1f}%)")
+    # aggregate additional stats
+    cluster_statistics = []
+
+    for cluster_label in sorted(data['cluster'].unique()):
+        cluster_data = data.loc[data['cluster'] == cluster_label]
+
+        if cluster_data.empty:
+            logger.debug(f"Cluster {cluster_label} is empty — skipping.")
+            continue
+
+        stats = {
+            'cluster': cluster_label,
+            'size': len(cluster_data),
+            'percent': len(cluster_data) / len(data) * 100,
+            'overnight_delta_mean': cluster_data.get("overnight_delta_pct", pd.Series()).mean(),
+            'overnight_delta_median': cluster_data.get("overnight_delta_pct", pd.Series()).median(),
+            'overnight_delta_std': cluster_data.get("overnight_delta_pct", pd.Series()).std(),
+            'volume_mean': cluster_data.get("volume_ratio", pd.Series()).mean(),
+            'volume_spikes': cluster_data.get("volume_spike", pd.Series()).sum(),
+            'volume_ratio_mean': cluster_data['volume_ratio'].mean(),
+            'rsi_mean': cluster_data.get("rsi", pd.Series()).mean(),
+            'rsi_oversold': (cluster_data.get("rsi", pd.Series()) < 30).sum(),
+            'rsi_overbought': (cluster_data.get("rsi", pd.Series()) > 70).sum(),
+        }
+
+        if 'abnormal' in cluster_data.columns:
+            stats['abnormal_rate'] = cluster_data['abnormal'].mean() * 100
+
+        cluster_statistics.append(stats)
+
+    df_cluster_stats = pd.DataFrame(cluster_statistics)
+
+    # Save JSON
+    json_path = os.path.join(
+        paths["processed_data_dir"], 
+        "cluster_statistics.json"
+    )
+    df_cluster_stats.to_json(json_path, orient="records", indent=4)
+    logger.info(f"✓ Cluster stats exported to JSON → {json_path}")
+
+    return
 
 
 def main(): 
@@ -361,106 +506,113 @@ def main():
     Main function to run clustering analysis and visualizations.
     """
 
-    config = load_config("~/Projects/qusa/config.yaml")
+    logger = setup_logger("ClusteringPipeline")
 
-    data_cfg = config["data"]
-    paths = data_cfg["paths"]
+    logger.info("=" * 80)
+    logger.info("Starting Clustering Analysis Pipeline")
+    logger.info("=" * 80)
 
+    # load config
+    try:
+        logger.info("Loading configuration...")
+        config = load_config("~/Projects/qusa/config.yaml")
+        data_cfg = config["data"]
+        paths = data_cfg["paths"]
+        logger.info("✓ Configuration loaded")
 
-    print("="*80)
-    print("CLUSTERING ANALYSIS FOR OVERNIGHT TRADING")
-    print("="*80)
+    except Exception as e:
+        logger.error(f"✗ Failed to load config: {e}")
+        return 1
     
-    # Load processed data
-    print("\n1. Loading processed data...")
-    try: 
+    try:
+        logger.info("Loading processed data...")
         processed_dir = paths["processed_data_dir"]
         ticker = data_cfg["tickers"][0]
 
-        data_path = os.path.join(processed_dir, f"{ticker}_processed.csv")
+        data_path = os.path.join(
+            processed_dir, 
+            f"{ticker}_processed.csv"
+        )
         data = pd.read_csv(data_path)
-        print("   Data loaded successfully.")
-    except FileNotFoundError: 
-        print("   ERROR: Processed data file not found.")
-        print("   Run 'python scripts/run_FE_pipeline.py' first")
+        logger.info(f"✓ Data loaded: {data.shape}")
+
+    except Exception as e:
+        logger.error(f"✗ Failed to load processed data: {e}")
         return 1
     
-    # confirm directory for figures
+
     confirm_directory(os.path.join(paths["figures_dir"], "dummy.txt"))
 
+    try:
+        logger.info("Running clustering analysis...")
+        analyzer = ClusterAnalyzer(n_clusters=4, algorithm="kmeans")
 
-    # confirm datetime conversion
-    if 'date' in data.columns:
-        data['date'] = pd.to_datetime(data['date'])
+        optimal_results = analyzer.find_optimal_clusters(
+            data, max_k=8
+        )
+        logger.info(f"✓ Optimal k = {optimal_results['optimal_k']}")
 
-    # find optimal clusters and fit model
-    print("\n2. Performing clustering analysis...")
-    analyzer = ClusterAnalyzer(n_clusters=4, algorithm='kmeans')
-    optimal_results = analyzer.find_optimal_clusters(
-        data, 
-        feature_cols=None, 
-        max_k=8
-    )
+        # plot cluster elbow curve
+        plot_elbow_curve(optimal_results, paths, logger)
 
-    print(f"   ✓ Optimal k: {optimal_results['optimal_k']}")
-    print(f"   → Using k={analyzer.n_clusters} clusters")
+        data_clustered = analyzer.fit_clusters(data)
+        logger.info("✓ Clustering complete")
+
+        # apply PCA for visualization
+        pca_X, pca_model = analyzer.perform_pca(
+            data_clustered,
+            feature_cols=analyzer.feature_columns,
+        )
+        logger.info(
+            f"✓ PCA explained variance: {pca_model.explained_variance_ratio_.sum():.1%}"
+        )
+        # visualizations
+        plot_pca_clusters(data_clustered, pca_X, pca_model, paths, logger)
+        plot_cluster_profiles(analyzer, paths, logger)
+        plot_cluster_time_series(data_clustered, paths, logger)
+
+        try:  # detailed cluster analysis 
+            analyze_clusters(
+                data=data_clustered, 
+                analyzer=analyzer, 
+                logger=logger
+            )
+        except: 
+            logger.error(f"Cluster analysis failed: {e}")
+            logger.exception("Full traceback:")
+
+    except Exception as e:
+        logger.exception("✗ Error during clustering analysis")
+        return 1
     
-    # plot elbow curve
-    print("\n3. Generating elbow curve...")
-    plot_elbow_curve(optimal_results, paths)
-
-    # fit clustering model
-    print("\n4. Fitting clustering model...")
-    data_clustered = analyzer.fit_clusters(data, feature_cols=None)
-    print(f"   ✓ Clustered {len(data_clustered[data_clustered['cluster']>=0])} days")
-
-    # perform PCA for visualization
-    print("\n5. Performing PCA for visualization...")
-    pca_X, pca_model = analyzer.perform_pca(
-        data_clustered, 
-        feature_cols=analyzer.feature_columns
-    )
-    print(f"   ✓ Explained variance: {pca_model.explained_variance_ratio_.sum():.1%}")
-
-    # visualize 
-    print("\n6. Generating visualizations...")
-    plot_pca_clusters(data_clustered, pca_X, pca_model, paths)
-    plot_cluster_profiles(analyzer, paths)
-    plot_cluster_time_series(data_clustered, paths)
-
-    # print summary 
-    print("\n7. Cluster Summary:")
-    analyzer.print_summary(data_clustered)
-
-    # detailed analysis
-    print("\n8. Detailed Cluster Analysis:")
-    analyze_clusters(data_clustered, analyzer)
-
-    # save clustered data
-    print("\n9. Saving clustered data...")
-    clustered_path = os.path.join(
-        paths["processed_data_dir"],
-        "AMZN_processed_clustered.csv"
-    )
-    data_clustered.to_csv(clustered_path, index=False)
-
-    print("   ✓ Clustered data saved.")
-
-    # Final summary
-    print("\n" + "="*80)
-    print("✓ CLUSTERING ANALYSIS COMPLETE!")
-    print("="*80)
-    print("\nGenerated files:")
-    print("  - data/processed/AAPL_clustered.csv")
-    print("  - data/processed/cluster_profiles.csv")
-    print("  - data/processed/elbow_curve.png")
-    print("  - data/processed/pca_clusters.png")
-    print("  - data/processed/cluster_profiles.png")
-    print("  - data/processed/cluster_time_series.png")
-    print("="*80)
+    try:  # save cluster statistics 
+        export_cluster_statistics(data_clustered, analyzer, paths, logger)
+    except Exception as e:
+        logger.error(f"Failed to export cluster stats: {e}")
+        logger.exception("Full traceback:")
     
+    try:  # save clustered data 
+        logger.info("Saving clustered data...")
+        output_path = os.path.join(
+            paths["processed_data_dir"],
+            f"{ticker}_processed_clustered.csv",
+        )
+        data_clustered.to_csv(
+            output_path, 
+            index=False
+        )
+        logger.info(f"✓ Clustered data saved → {output_path}")
+
+    except Exception as e:
+        logger.error(f"✗ Failed to save clustered data: {e}")
+        return 1
+    
+    logger.info("=" * 80)
+    logger.info("✓ CLUSTERING ANALYSIS COMPLETE")
+    logger.info("=" * 80)
+
     return 0
-
+    
 
 if __name__ == "__main__":
     sys.exit(main())
