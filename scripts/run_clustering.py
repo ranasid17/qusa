@@ -91,18 +91,18 @@ def plot_elbow_curve(optimal_results, paths, logger):
 
     logger.info("Generating elbow curve plot...")
 
-    # inertia plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
     # inertia plot
     ax1.plot(
         optimal_results['k'], 
         optimal_results['inertia'], 
-        'bo-'
+        marker='o', 
+        color='#3A445D'
     )
     ax1.axvline(  
         x=optimal_results['optimal_k'], 
-        color='firebrick', 
+        color='#274C77', 
         linestyle='--',
         label=f"Optimal Clusters: {optimal_results['optimal_k']}"
     )
@@ -125,11 +125,12 @@ def plot_elbow_curve(optimal_results, paths, logger):
     ax2.plot(
         optimal_results['k'], 
         optimal_results['silhouette_score'], 
-        'go-'
+        marker='o', 
+        color='#3A445D'
     )
     ax2.axvline(
         x=optimal_results['optimal_k'], 
-        color='firebrick', 
+        color='#274C77', 
         linestyle='--',
         label=f"Optimal Clusters: {optimal_results['optimal_k']}"
     )
