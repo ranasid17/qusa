@@ -231,9 +231,3 @@ def evaluate_model(model_path, test_data_path):
 
     return metrics
 
-
-
-
-
-
-
