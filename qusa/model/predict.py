@@ -80,3 +80,77 @@ class LivePredictor:
         else:
             confidence = "LOW"
 
+        # store prediction metadata in dictionary
+        prediction = {
+            'date': latest['date'].iloc[0] if 'date' in latest.columns else None,
+            'prediction': y_pred,
+            'direction': direction,
+            'probability_up': y_prob,
+            'confidence': confidence
+        }
+
+        return prediction
+
+    @staticmethod
+    def print_prediction(prediction):
+        """
+        Print formatted prediction.
+
+        Parameters:
+            1) prediction (dict): Model prediction on most-recent data
+        """
+
+        print("\n" + "=" * 80)
+        print("PREDICTION")
+        print("=" * 80)
+
+        if prediction['date']:
+            print(f"Date: {prediction['date']}")
+
+        print(f"Direction: {prediction['direction']}")
+        print(f"Probability (UP): {prediction['probability_up']:.1%}")
+        print(f"Confidence: {prediction['confidence']}")
+
+        # handle cases with high prediction confidence
+        if (prediction['confidence'] == 'HIGH') & (prediction['prediction']==1):
+            # handle case where high confidence positive prediction
+            if prediction['prediction'] == 1:
+                print("\n✓ STRONG BUY signal")
+            # otherwise high confidence negative prediction
+            else:
+                print("\n✓ STRONG SELL signal")
+
+        # otherwise low prediction confidence
+        else:
+            print("\n⚠ LOW CONFIDENCE - No clear signal")
+
+        return
+
+
+def make_prediction(model_path, data_path):
+    """
+    Use model to predict on most-recent
+    input data.
+
+    Parameters:
+        1) model_path (str): Path to saved/trained model
+        2) data_path (str): Path to data with required features
+
+    Returns:
+        1) prediction (dict): Model prediction
+    """
+
+    # load predictor
+    predictor = LivePredictor(model_path)
+
+    # load data and confirm datetime stamp
+    data = pd.read_csv(os.path.expanduser(data_path))
+    data['date'] = pd.to_datetime(data['date'])
+
+    # make prediction
+    prediction = predictor.predict(data)
+
+    # print prediction
+    predictor.print_prediction(prediction)
+
+    return prediction
