@@ -214,3 +214,4 @@ data/figures/*
 
 saved_models/*
 *.DS_Store
+*.idea
