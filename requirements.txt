@@ -11,3 +11,6 @@ pyyaml
 # clustering
 matplotlib
 scikit-learn
+
+# modeling
+joblib
