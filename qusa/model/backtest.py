@@ -57,7 +57,7 @@ class ModelBacktester:
         """
 
         # load data from path and confirm datetime type
-        self.data = pd.read_csv(self.model_path)
+        self.data = pd.read_csv(self.backtest_data_path)
         self.data["date"] = pd.to_datetime(self.data["date"])
 
         print(f"✓ Loaded {len(self.data)} days of data")
@@ -103,7 +103,7 @@ class ModelBacktester:
         # calculate returns
         results["returns"] = 0.0
 
-        for idx in results.idx:
+        for idx in results.index:
             # skip low confidence predictions
             if not results.loc[idx, "high_confidence"]:
                 continue
@@ -117,7 +117,7 @@ class ModelBacktester:
                 results.loc[idx, "strategy_return"] = actual_return * position_size
             # otherwise model indicates short sell/do not buy
             else:
-                results.loc["idx", "strategy_return"] = -actual_return * position_size
+                results.loc[idx, "strategy_return"] = -actual_return * position_size
 
         # calculate cumulative returns
         results["cumulative_return"] = (

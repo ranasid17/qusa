@@ -51,7 +51,7 @@ class OvernightCalculator:
         return df_mod
 
     @staticmethod
-    def identify_abnormal_delta(self, df, threshold=2.0):
+    def identify_abnormal_delta(df, threshold=2.0):
         """
         Identify abnormal overnight price changes.
 

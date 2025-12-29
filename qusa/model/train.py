@@ -19,7 +19,8 @@ SAFE_FEATURES = [
     "52_week_high_proximity",
     "52_week_low_proximity",
     "atr_pct",
-    "close_position" "rsi",
+    "close_position",
+    "rsi",
     "volume_ratio",
     "day_of_week",
     "day_of_month",
@@ -99,7 +100,7 @@ class OvernightDirectionModel:
         ###
 
         print("Preparing data...")
-        data["target"] = data.loc[data["overnight_delta"] > 0].astype(int)
+        data["target"] = (data["overnight_delta"] > 0).astype(int)
         data = data.dropna(subset=["overnight_delta"])
         data = data.drop(columns=CONFOUND_FEATURES, errors="ignore")
 

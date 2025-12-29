@@ -70,7 +70,7 @@ class ModelEvaluator:
         data = pd.read_csv(os.path.expanduser(test_data_path))
 
         # define target feature
-        y_target = data.loc[data["overnight_delta"] > 0].astype(int)
+        y_target = (data["target"] > 0).astype(int)
 
         # extract features and fill missing values
         X = data[self.features].fillna(0)
@@ -183,13 +183,13 @@ class ModelEvaluator:
         )
 
         print(f"\nHigh-Confidence Predictions (>= {self.threshold}):")
-        print(f"  Coverage: {metrics['high_conf_coverage']:.1%}")
-        print(f"  Accuracy: {metrics['high_conf_accuracy']:.3f}")
+        print(f"  Coverage: {metrics['high_confidence_coverage']:.1%}")
+        print(f"  Accuracy: {metrics['high_confidence_accuracy']:.3f}")
 
         print(f"\nProbability Calibration:")
         print(metrics["calibration"])
 
-        return
+        return metrics
 
 
 def evaluate_model(model_path, test_data_path):

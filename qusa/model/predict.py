@@ -29,7 +29,6 @@ class LivePredictor:
         self.model_path = os.path.expanduser(model_path)
         self._load_model()
 
-
     def _load_model(self):
         """
         Load trained model.
@@ -37,15 +36,14 @@ class LivePredictor:
 
         bundle = joblib.load(self.model_path)
 
-        self.model = bundle['model']
-        self.features = bundle['features']
-        self.threshold = bundle['threshold']
-        self.trained_date = bundle['trained_date', 'Unknown']
+        self.model = bundle["model"]
+        self.features = bundle["features"]
+        self.threshold = bundle["threshold"]
+        self.trained_date = bundle.get("trained_date", "Unknown")
 
         print(f"✓ Model loaded (trained: {self.trained_date})")
 
         return
-
 
     def predict(self, data):
         """
@@ -66,7 +64,7 @@ class LivePredictor:
 
         # predict labels and probabilities
         y_pred = self.model.predict(X)[0]
-        y_prob = self.model.predict_proba(X)[0,1]
+        y_prob = self.model.predict_proba(X)[0, 1]
 
         # interpret prediction
         if y_pred == 1:
@@ -82,11 +80,11 @@ class LivePredictor:
 
         # store prediction metadata in dictionary
         prediction = {
-            'date': latest['date'].iloc[0] if 'date' in latest.columns else None,
-            'prediction': y_pred,
-            'direction': direction,
-            'probability_up': y_prob,
-            'confidence': confidence
+            "date": latest["date"].iloc[0] if "date" in latest.columns else None,
+            "prediction": y_pred,
+            "direction": direction,
+            "probability_up": y_prob,
+            "confidence": confidence,
         }
 
         return prediction
@@ -104,7 +102,7 @@ class LivePredictor:
         print("PREDICTION")
         print("=" * 80)
 
-        if prediction['date']:
+        if prediction["date"]:
             print(f"Date: {prediction['date']}")
 
         print(f"Direction: {prediction['direction']}")
@@ -112,9 +110,9 @@ class LivePredictor:
         print(f"Confidence: {prediction['confidence']}")
 
         # handle cases with high prediction confidence
-        if (prediction['confidence'] == 'HIGH') & (prediction['prediction']==1):
+        if (prediction["confidence"] == "HIGH") & (prediction["prediction"] == 1):
             # handle case where high confidence positive prediction
-            if prediction['prediction'] == 1:
+            if prediction["prediction"] == 1:
                 print("\n✓ STRONG BUY signal")
             # otherwise high confidence negative prediction
             else:
@@ -145,7 +143,7 @@ def make_prediction(model_path, data_path):
 
     # load data and confirm datetime stamp
     data = pd.read_csv(os.path.expanduser(data_path))
-    data['date'] = pd.to_datetime(data['date'])
+    data["date"] = pd.to_datetime(data["date"])
 
     # make prediction
     prediction = predictor.predict(data)
