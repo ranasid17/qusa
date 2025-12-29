@@ -112,11 +112,13 @@ def main():
     try:  # load config file
         logger.info("Loading configuration file...")
 
-        config = load_config("config.yaml")
+        config = load_config("qusa/utils/config.yaml")
 
         logger.info("✓ Configuration loaded successfully")
-        logger.info(f"  Data directory: {config['data']['data_dir']}")
-        logger.info(f"  Output directory: {config['data']['processed_data_dir']}")
+        logger.info(f"  Data directory: {config['data']['paths']['raw_data_dir']}")
+        logger.info(
+            f"  Output directory: {config['data']['paths']['processed_data_dir']}"
+        )
 
     except Exception as e:  # unable to load config
         logger.error(f"✗ Error loading configuration: {e}")
@@ -124,7 +126,7 @@ def main():
 
     try:  # load data
         logger.info("Loading data...")
-        data_path = os.path.expanduser(config["data"]["data_dir"])
+        data_path = os.path.expanduser(config["data"]["paths"]["raw_data_dir"])
         tickers = config["data"]["tickers"]
 
         # for simplicity, process only the first ticker
@@ -197,7 +199,9 @@ def main():
         logger.info("Saving processed data...")
 
         # extract output path from config
-        processed_dir = os.path.expanduser(config["data"]["processed_data_dir"])
+        processed_dir = os.path.expanduser(
+            config["data"]["paths"]["processed_data_dir"]
+        )
         os.makedirs(processed_dir, exist_ok=True)
 
         output_path = os.path.join(processed_dir, f"{ticker}_processed.csv")
