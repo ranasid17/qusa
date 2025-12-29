@@ -192,13 +192,13 @@ class ModelEvaluator:
         return metrics
 
 
-def evaluate_model(model_path, test_data_path):
+def evaluate_model(model_path, eval_data_path):
     """
     Evaluate trained model on test data set.
 
     Parameters:
         1) model_path (str): Path to saved/trained model
-        2) test_data_path (str): Path to test dataset
+        2) eval_data_path (str): Path to test dataset
 
     Returns:
         1) evaluation (dict): Evaluation metrics
@@ -206,7 +206,7 @@ def evaluate_model(model_path, test_data_path):
 
     # initialize class and run on model
     evaluator = ModelEvaluator(model_path)
-    metrics = evaluator.evaluate(test_data_path)
+    metrics = evaluator.evaluate(eval_data_path)
 
     print("\n" + "=" * 80)
     print("✓ EVALUATION COMPLETE")
