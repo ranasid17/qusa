@@ -14,7 +14,7 @@ data:
     raw_data_dir: '~/Projects/qusa/data/raw'
     processed_data_dir: '~/Projects/qusa/data/processed'
     figures_dir: '~/Projects/qusa/data/figures'
-    results_dir: '~/Projects/qusa/data/results'
+    predictions_dir: '~/Projects/qusa/data/predictions'
 
 # ------------------
 # Feature engineering
@@ -33,3 +33,42 @@ analysis:
   minimum_event_occurrences: 20
   strong_lift: 1.5
   moderate_lift: 1.2
+
+
+# ------------------
+# Model settings
+# ------------------
+model:
+  output:
+    model_output_path: "~/Projects/qusa/saved_models"
+  parameters:
+    max_depth: 5
+    min_samples_leaf: 10
+    min_samples_split: 20
+    class_weight: balanced
+    random_state: 42
+    test_size: 0.25
+    cv: 5
+    probability_threshold: 0.6
+
+evaluation:
+  save_results: true
+
+prediction:
+  save: true
+  log_file: "~/Projects/qusa/data/predictions/prediction_log.csv"
+
+
+# ------------------
+# Backtesting settings
+# ------------------
+backtest:
+    initial_capital: 10000
+    position_size: 0.95
+    save_results: true
+    save_plots: true
+
+pipeline:
+  skip_fe: false
+  skip_clustering: false
+  skip_backtest: false
