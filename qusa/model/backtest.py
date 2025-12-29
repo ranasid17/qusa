@@ -10,8 +10,6 @@ import numpy as np
 import os
 import pandas as pd
 
-from datetime import datetime
-
 
 class ModelBacktester:
     """
@@ -138,6 +136,9 @@ class ModelBacktester:
     def calculate_metrics(self):
         """
         Calculate backtest model performance.
+
+        Returns:
+            1) metrics (dict): Performance metrics
         """
 
         print("\n" + "=" * 80)
@@ -149,12 +150,12 @@ class ModelBacktester:
 
         # basic statistics
         total_trades = len(traded)
-        positve_return_trades = self.results.loc[self.results["strategy_return"] > 0]
+        positive_return_trades = self.results.loc[self.results["strategy_return"] > 0]
         negative_return_trades = self.results.loc[self.results["strategy_return"] < 0]
 
         # calculate success rate
         if total_trades > 0:
-            success_rate = positve_return_trades / total_trades
+            success_rate = positive_return_trades / total_trades
         else:
             success_rate = 0
 
@@ -170,4 +171,110 @@ class ModelBacktester:
             - 1
         ) * 100
 
-        #
+        # calculate risk metrics
+        daily_return = traded["strategy_return"]  # filter returns on traded days
+        volatility = daily_return.std()
+
+        if volatility > 0:
+            sharpe_ratio = (daily_return.mean() / volatility) * np.sqrt(252)
+        else:
+            sharpe_ratio = 0
+
+        # calculate draw down
+        cumulative = self.results["portfolio_value"]
+        running_max = cumulative.expanding().max()
+        draw_down = (cumulative - running_max) / running_max * 100
+        max_draw_down = draw_down.min()
+
+        # print metrics
+        print(f"\nTrading Statistics:")
+        print(f"  Total trades: {total_trades}")
+        print(f"  Winning trades: {positive_return_trades}")
+        print(f"  Losing trades: {negative_return_trades}")
+        print(f"  Win rate: {success_rate:.1%}")
+
+        print(f"\nReturn Metrics:")
+        print(f"  Strategy return: {strategy_return:+.2f}%")
+        print(f"  Buy & Hold return: {buy_hold_return:+.2f}%")
+        print(f"  Alpha: {strategy_return - buy_hold_return:+.2f}%")
+
+        print(f"\nRisk Metrics:")
+        print(f"  Volatility (daily): {volatility:.2f}%")
+        print(f"  Sharpe ratio: {sharpe_ratio:.2f}")
+        print(f"  Max draw_down: {max_draw_down:.2f}%")
+
+        # store metrics in dictionary
+        metrics = {
+            "total_trades": total_trades,
+            "success_rate": success_rate,
+            "strategy_return": strategy_return,
+            "buy_hold_return": buy_hold_return,
+            "sharpe_ratio": sharpe_ratio,
+            "max_draw_down": max_draw_down,
+            "alpha": strategy_return - buy_hold_return,
+        }
+
+        return metrics
+
+    def plot_results(self, save_path):
+        """
+        Plot backtest results.
+
+        Parameters:
+            1) save_path (str): Path to save plot
+        """
+
+        fig, ax = plt.subplots(3, 1, figsize=(12, 8))
+
+        # plot 1: portfolio value vs buy & hold
+        ax[0].plot(
+            self.results["date"], self.results["portfolio_value"], label="Strategy"
+        )
+        ax[0].plot(
+            self.results["date"], self.results["buy_hold_value"], label="Buy & Hold"
+        )
+        ax[0].set_title("Portfolio Value Over Time", fontsize=14)
+        ax[0].set_xlabel("Date", fontsize=12)
+        ax[0].set_ylabel("Portfolio Value ($)", fontsize=12)
+        ax[0].legend()
+
+        # plot 2: draw down
+        cumulative = self.results["portfolio_value"]
+        running_max = cumulative.expanding().max()
+        draw_down = (cumulative - running_max) / running_max * 100
+        ax[1].plot(self.results["date"], draw_down, color="darkred")
+        ax[1].fill_between(
+            self.results["date"],
+            draw_down,
+            0,
+            where=(draw_down < 0),
+            color="red",
+            alpha=0.3,
+        )
+        ax[1].set_title("Draw Down Over Time", fontsize=14)
+        ax[1].set_xlabel("Date", fontsize=12)
+        ax[1].set_ylabel("Draw Down (%)", fontsize=12)
+
+        # plot 3: trade distribution
+        traded = self.results.loc[self.results["high_confidence"]]
+        ax[2].scatter(
+            traded["date"],
+            traded["strategy_return"],
+            c=traded["strategy_return"].apply(lambda x: "g" if x > 0 else "r"),
+        )
+        ax[2].axhline(0, color="black", linestyle="--", linewidth=0.8)
+        ax[2].set_title("Trade Returns Distribution", fontsize=14)
+        ax[2].set_xlabel("Date", fontsize=12)
+        ax[2].set_ylabel("Trade Return (%)", fontsize=12)
+
+        plt.tight_layout()
+
+        # save plot
+        save_path = os.path.expanduser(save_path)
+        os.makedirs(save_path, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.close()
+
+        print(f"\n✓ Results saved to {save_path}")
+
+        return
