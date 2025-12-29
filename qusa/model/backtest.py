@@ -150,5 +150,24 @@ class ModelBacktester:
         # basic statistics
         total_trades = len(traded)
         positve_return_trades = self.results.loc[self.results["strategy_return"] > 0]
+        negative_return_trades = self.results.loc[self.results["strategy_return"] < 0]
 
-        return
+        # calculate success rate
+        if total_trades > 0:
+            success_rate = positve_return_trades / total_trades
+        else:
+            success_rate = 0
+
+        # calculate overall return
+        buy_hold_return = (
+            self.results["buy_hold_value"].iloc[-1]
+            / self.results["buy_hold_value"].iloc[0]
+            - 1
+        ) * 100
+        strategy_return = (
+            self.results["portfolio_value"].iloc[-1]
+            / self.results["portfolio_value"].iloc[0]
+            - 1
+        ) * 100
+
+        #
