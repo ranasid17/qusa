@@ -83,7 +83,7 @@ def main():
             success_count += 1
 
         except Exception as e:
-            logger.error(f"❌ Error evaluating {ticker}: {str(e)}", exc_info=True)
+            logger.error(f"✗ Error evaluating {ticker}: {str(e)}", exc_info=True)
             continue  # proceed to next ticker
 
     # 4) summarize results
