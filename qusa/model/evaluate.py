@@ -147,7 +147,7 @@ class ModelEvaluator:
             2) y_pred (type): fill here
 
         Return:
-            1) calibration (type): flll here
+            1) calibration (type): fill here
         """
 
         # define probability boundaries
@@ -180,14 +180,14 @@ class ModelEvaluator:
         print(f"  Recall:    {metrics['recall']:.3f}")
         print(f"  F1 Score:  {metrics['f1']:.3f}")
 
-        print(f"\nConfusion Matrix:")
-        cm = metrics["confusion_matrix"]
-        print(
-            f"  TN: {metrics['true_negatives']:4d}  FP: {metrics['false_positives']:4d}"
-        )
-        print(
-            f"  FN: {metrics['false_negatives']:4d}  TP: {metrics['true_positives']:4d}"
-        )
+        if "confusion_matrix" in metrics:
+            print(f"\nConfusion Matrix:")
+            print(
+                f"  TN: {metrics['true_negatives']:4d}  FP: {metrics['false_positives']:4d}"
+            )
+            print(
+                f"  FN: {metrics['false_negatives']:4d}  TP: {metrics['true_positives']:4d}"
+            )
 
         print(f"\nHigh-Confidence Predictions (>= {self.threshold}):")
         print(f"  Coverage: {metrics['high_confidence_coverage']:.1%}")
