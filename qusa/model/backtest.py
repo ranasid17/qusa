@@ -57,7 +57,7 @@ class ModelBacktester:
         """
 
         # load data from path and confirm datetime type
-        self.data = pd.read_csv(self.model_path)
+        self.data = pd.read_csv(self.backtest_data_path)
         self.data["date"] = pd.to_datetime(self.data["date"])
 
         print(f"✓ Loaded {len(self.data)} days of data")
@@ -81,35 +81,33 @@ class ModelBacktester:
         print("=" * 80)
 
         # prepare features
-        X = self.data[self.features].fillna(0)
+        x = self.data[self.features].fillna(0)
 
         # make predictions and store likelihoods
-        predictions = self.model.predict(X)
-        probabilities = self.model.predict_proba(X)[:, 1]
+        predictions = self.model.predict(x)
+        probabilities = self.model.predict_proba(x)[:, 1]
 
         # store results as DataFrame
         results = self.data[["date", "close", "overnight_delta"]].copy()
-        results["prediction"] = predictions
-        results["probability_up"] = probabilities
-        results["true_direction"] = results.loc[results["overnight_delta"] > 0].astype(
-            int
-        )
+        results["predicted_direction"] = predictions
+        results["predicted_probability"] = probabilities
+        results["true_direction"] = (results["overnight_delta"] > 0).astype(int)
 
         # label high confidence predictions
-        results["high_confidence"] = (results["probability_up"] >= self.threshold) | (
-            results["probability_up"] <= (1 - self.threshold)
-        )
+        results["high_confidence"] = (
+            results["predicted_probability"] >= self.threshold
+        ) | (results["predicted_probability"] <= (1 - self.threshold))
 
         # calculate returns
-        results["returns"] = 0.0
+        results["strategy_return"] = 0.0
 
-        for idx in results.idx:
+        for idx in results.index:
             # skip low confidence predictions
             if not results.loc[idx, "high_confidence"]:
                 continue
 
             # store predicted direction and true return
-            prediction = results.loc[idx, "prediction"]
+            prediction = results.loc[idx, "predicted_direction"]
             actual_return = results.loc[idx, "overnight_delta"]
 
             # handle cases when model indicates buy
@@ -117,7 +115,7 @@ class ModelBacktester:
                 results.loc[idx, "strategy_return"] = actual_return * position_size
             # otherwise model indicates short sell/do not buy
             else:
-                results.loc["idx", "strategy_return"] = -actual_return * position_size
+                results.loc[idx, "strategy_return"] = -actual_return * position_size
 
         # calculate cumulative returns
         results["cumulative_return"] = (
@@ -145,76 +143,118 @@ class ModelBacktester:
         print("PERFORMANCE METRICS")
         print("=" * 80)
 
-        # filter to days with trade executed
-        traded = self.results.loc[self.results["high_confidence"]]
+        # handle case with no results
+        if self.results is None:
+            return {}
 
-        # basic statistics
-        total_trades = len(traded)
-        positive_return_trades = self.results.loc[self.results["strategy_return"] > 0]
-        negative_return_trades = self.results.loc[self.results["strategy_return"] < 0]
+        # 1) store first, final equity values for strategy and buy & hold
+        first_equity = float(
+            self.results["portfolio_value"].iloc[0]
+            / self.results["cumulative_return"].iloc[0]
+        )
+        final_equity_strategy = float(self.results["portfolio_value"].iloc[-1])
+        final_equity_buy_hold = float(self.results["buy_hold_value"].iloc[-1])
 
-        # calculate success rate
-        if total_trades > 0:
-            success_rate = positive_return_trades / total_trades
+        # 2) calculate performance for strategy and buy & hold
+        ## strategy return
+        strategy_gain = final_equity_strategy - first_equity
+        strategy_return = strategy_gain / first_equity
+
+        ## buy & hold return
+        buy_hold_gain = final_equity_buy_hold - first_equity
+        buy_hold_return = buy_hold_gain / first_equity
+
+        ## 2) calculate alpha
+        alpha = strategy_return - buy_hold_return
+
+        # 4) calculate win/loss percentage
+        ## store total, positive return, and negative return trades
+        trades = self.results.loc[self.results["high_confidence"] == True].copy()
+        trades_positive_return = trades.loc[trades["strategy_return"] > 0]
+        trades_negative_return = trades.loc[trades["strategy_return"] < 0]
+
+        ## 5) calculate win/loss percentages
+        ## count total, positive, and negative return trades
+        trades_count = len(trades)
+        trades_positive_return_count = len(trades_positive_return["strategy_return"])
+        trades_negative_return_count = len(trades_negative_return["strategy_return"])
+        ## calculate win percentages
+        if trades_count > 0:
+            win_rate = trades_positive_return_count / trades_count
         else:
-            success_rate = 0
+            win_rate = 0
+        ## calculate loss percentage
+        loss_rate = 1 - win_rate
 
-        # calculate overall return
-        buy_hold_return = (
-            self.results["buy_hold_value"].iloc[-1]
-            / self.results["buy_hold_value"].iloc[0]
-            - 1
-        ) * 100
-        strategy_return = (
-            self.results["portfolio_value"].iloc[-1]
-            / self.results["portfolio_value"].iloc[0]
-            - 1
-        ) * 100
+        # 6) calculate risk metrics
+        ## annualized volatility (assume 252 trading days)
+        daily_std = float(self.results["strategy_return"].std())
+        annual_vol = daily_std * np.sqrt(252)
 
-        # calculate risk metrics
-        daily_return = traded["strategy_return"]  # filter returns on traded days
-        volatility = daily_return.std()
+        ## Sharpe ratio (assume risk-free rate = 0.0%)
+        daily_mean = float(self.results["strategy_return"].mean())
 
-        if volatility > 0:
-            sharpe_ratio = (daily_return.mean() / volatility) * np.sqrt(252)
+        if annual_vol != 0:
+            sharpe_ratio = (daily_mean / daily_std) * np.sqrt(252)
         else:
             sharpe_ratio = 0
 
-        # calculate draw down
-        cumulative = self.results["portfolio_value"]
-        running_max = cumulative.expanding().max()
-        draw_down = (cumulative - running_max) / running_max * 100
-        max_draw_down = draw_down.min()
+        ## max draw down
+        rolling_max = self.results["portfolio_value"].cummax()
+        draw_down = (self.results["portfolio_value"] / rolling_max) - 1
+        max_draw_down = float(draw_down.min())
 
-        # print metrics
-        print(f"\nTrading Statistics:")
-        print(f"  Total trades: {total_trades}")
-        print(f"  Winning trades: {positive_return_trades}")
-        print(f"  Losing trades: {negative_return_trades}")
-        print(f"  Win rate: {success_rate:.1%}")
-
-        print(f"\nReturn Metrics:")
-        print(f"  Strategy return: {strategy_return:+.2f}%")
-        print(f"  Buy & Hold return: {buy_hold_return:+.2f}%")
-        print(f"  Alpha: {strategy_return - buy_hold_return:+.2f}%")
-
-        print(f"\nRisk Metrics:")
-        print(f"  Volatility (daily): {volatility:.2f}%")
-        print(f"  Sharpe ratio: {sharpe_ratio:.2f}")
-        print(f"  Max draw_down: {max_draw_down:.2f}%")
-
-        # store metrics in dictionary
+        # 5) compile metrics dictionary
         metrics = {
-            "total_trades": total_trades,
-            "success_rate": success_rate,
+            "total_trades": trades_count,
+            "winning_trades": trades_positive_return_count,
+            "losing_trades": trades_negative_return_count,
+            "win_percentage": win_rate,
+            "loss_percentage": loss_rate,
             "strategy_return": strategy_return,
             "buy_hold_return": buy_hold_return,
+            "strategy_gain": strategy_gain,
+            "buy_hold_gain": buy_hold_gain,
+            "strategy_value": final_equity_strategy,
+            "buy_hold_value": final_equity_buy_hold,
+            "alpha": alpha,
+            "annual_volatility": annual_vol,
             "sharpe_ratio": sharpe_ratio,
-            "max_draw_down": max_draw_down,
-            "alpha": strategy_return - buy_hold_return,
+            "max_draw_down": max_draw_down * 100,
         }
 
+        self._print_results_to_console(metrics)
+
         return metrics
+
+    @staticmethod
+    def _print_results_to_console(metrics):
+        """
+        Print performance metrics to console.
+
+        Parameters:
+            1) metrics (dict): Performance metrics
+        """
+
+        print("\n" + "=" * 30)
+        print(" BACKTEST SUMMARY")
+        print("=" * 30)
+        print(f"Total Trades:       {metrics['total_trades']}")
+        print(f"Winning Trades:     {metrics['winning_trades']}")
+        print(f"Losing Trades:      {metrics['losing_trades']}")
+        print(f"Win Rate:           {metrics['win_percentage']*100:.2f}%")
+        print(f"Loss Rate:          {metrics['loss_percentage']*100:.2f}%")
+        print(f"Strategy Return:    {metrics['strategy_return']*100:.2f}%")
+        print(f"Buy & Hold Return:  {metrics['buy_hold_return']*100:.2f}%")
+        print(f"Strategy Value:     ${metrics['strategy_value']:.2f}")
+        print(f"Buy & Hold Value:   ${metrics['buy_hold_value']:.2f}")
+        print(f"Alpha:              {metrics['alpha']:.2f}")
+        print(f"Annual Volatility:  {metrics['annual_volatility']:.2f}")
+        print(f"Sharpe Ratio:       {metrics['sharpe_ratio']:.2f}")
+        print(f"Max Draw down:      {metrics['max_draw_down']:.2f}%")
+        print("=" * 30)
+
+        return
 
     def plot_results(self, save_path):
         """
@@ -228,12 +268,19 @@ class ModelBacktester:
 
         # plot 1: portfolio value vs buy & hold
         ax[0].plot(
-            self.results["date"], self.results["portfolio_value"], label="Strategy"
+            self.results["date"],
+            self.results["portfolio_value"],
+            label="Strategy",
+            color="#0f4c5c",
+            linestyle="--",
         )
         ax[0].plot(
-            self.results["date"], self.results["buy_hold_value"], label="Buy & Hold"
+            self.results["date"],
+            self.results["buy_hold_value"],
+            label="Buy & Hold",
+            color="#9a031e",
         )
-        ax[0].set_title("Portfolio Value Over Time", fontsize=14)
+        ax[0].set_title("Portfolio Value", fontsize=14)
         ax[0].set_xlabel("Date", fontsize=12)
         ax[0].set_ylabel("Portfolio Value ($)", fontsize=12)
         ax[0].legend()
@@ -242,16 +289,16 @@ class ModelBacktester:
         cumulative = self.results["portfolio_value"]
         running_max = cumulative.expanding().max()
         draw_down = (cumulative - running_max) / running_max * 100
-        ax[1].plot(self.results["date"], draw_down, color="darkred")
+        ax[1].plot(self.results["date"], draw_down, color="#9a031e")
         ax[1].fill_between(
             self.results["date"],
             draw_down,
             0,
             where=(draw_down < 0),
-            color="red",
+            color="#ef233c",
             alpha=0.3,
         )
-        ax[1].set_title("Draw Down Over Time", fontsize=14)
+        ax[1].set_title("Draw Down", fontsize=14)
         ax[1].set_xlabel("Date", fontsize=12)
         ax[1].set_ylabel("Draw Down (%)", fontsize=12)
 
@@ -260,7 +307,9 @@ class ModelBacktester:
         ax[2].scatter(
             traded["date"],
             traded["strategy_return"],
-            c=traded["strategy_return"].apply(lambda x: "g" if x > 0 else "r"),
+            c=traded["strategy_return"].apply(
+                lambda x: "#0f4c5c" if x > 0 else "#9a031e"
+            ),
         )
         ax[2].axhline(0, color="black", linestyle="--", linewidth=0.8)
         ax[2].set_title("Trade Returns Distribution", fontsize=14)
@@ -271,7 +320,6 @@ class ModelBacktester:
 
         # save plot
         save_path = os.path.expanduser(save_path)
-        os.makedirs(save_path, exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
 

@@ -67,7 +67,7 @@ class FeaturePipeline:
         return df_mod
 
     @staticmethod
-    def get_engineered_features(self):
+    def get_engineered_features():
         """
         Get the list of all engineered feature names.
 

@@ -5,7 +5,6 @@ Evaluate model performance.
 """
 
 import joblib
-import numpy as np
 import os
 import pandas as pd
 
@@ -15,7 +14,6 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
     confusion_matrix,
-    classification_report,
 )
 
 
@@ -69,8 +67,14 @@ class ModelEvaluator:
         # load test data
         data = pd.read_csv(os.path.expanduser(test_data_path))
 
+        # define target feature if not present
+        if ("target" not in data.columns) and ("overnight_delta" in data.columns):
+            data["target"] = (data["overnight_delta"] > 0).astype(int)
+        elif "target" not in data.columns:
+            raise KeyError("Neither 'target' nor 'overnight_delta' found in test data.")
+
         # define target feature
-        y_target = data.loc[data["overnight_delta"] > 0].astype(int)
+        y_target = (data["target"] > 0).astype(int)
 
         # extract features and fill missing values
         X = data[self.features].fillna(0)
@@ -81,6 +85,8 @@ class ModelEvaluator:
 
         # calculate metrics
         metrics = self._calculate_metrics(y_target, y_pred, y_prob)
+        metrics["calibration"] = self._analyze_calibration(y_target, y_prob)
+        self._print_metrics(metrics)
 
         # print results
         self._print_metrics(metrics)
@@ -129,9 +135,10 @@ class ModelEvaluator:
             metrics["high_confidence_coverage"] = 0
             metrics["high_confidence_accuracy"] = 0
 
-        return
+        return metrics
 
-    def _analyze_calibration(self, y_true, y_prob):
+    @staticmethod
+    def _analyze_calibration(y_true, y_prob):
         """
         Evaluate model prediction calibration.
 
@@ -140,7 +147,7 @@ class ModelEvaluator:
             2) y_pred (type): fill here
 
         Return:
-            1) calibration (type): flll here
+            1) calibration (type): fill here
         """
 
         # define probability boundaries
@@ -173,32 +180,33 @@ class ModelEvaluator:
         print(f"  Recall:    {metrics['recall']:.3f}")
         print(f"  F1 Score:  {metrics['f1']:.3f}")
 
-        print(f"\nConfusion Matrix:")
-        cm = metrics["confusion_matrix"]
-        print(
-            f"  TN: {metrics['true_negatives']:4d}  FP: {metrics['false_positives']:4d}"
-        )
-        print(
-            f"  FN: {metrics['false_negatives']:4d}  TP: {metrics['true_positives']:4d}"
-        )
+        if "confusion_matrix" in metrics:
+            print(f"\nConfusion Matrix:")
+            print(
+                f"  TN: {metrics['true_negatives']:4d}  FP: {metrics['false_positives']:4d}"
+            )
+            print(
+                f"  FN: {metrics['false_negatives']:4d}  TP: {metrics['true_positives']:4d}"
+            )
 
         print(f"\nHigh-Confidence Predictions (>= {self.threshold}):")
-        print(f"  Coverage: {metrics['high_conf_coverage']:.1%}")
-        print(f"  Accuracy: {metrics['high_conf_accuracy']:.3f}")
+        print(f"  Coverage: {metrics['high_confidence_coverage']:.1%}")
+        print(f"  Accuracy: {metrics['high_confidence_accuracy']:.3f}")
 
-        print(f"\nProbability Calibration:")
-        print(metrics["calibration"])
+        if "calibration" in metrics:
+            print(f"\nProbability Calibration:")
+            print(metrics["calibration"])
 
         return
 
 
-def evaluate_model(model_path, test_data_path):
+def evaluate_model(model_path, eval_data_path):
     """
     Evaluate trained model on test data set.
 
     Parameters:
         1) model_path (str): Path to saved/trained model
-        2) test_data_path (str): Path to test dataset
+        2) eval_data_path (str): Path to test dataset
 
     Returns:
         1) evaluation (dict): Evaluation metrics
@@ -206,7 +214,7 @@ def evaluate_model(model_path, test_data_path):
 
     # initialize class and run on model
     evaluator = ModelEvaluator(model_path)
-    metrics = evaluator.evaluate(test_data_path)
+    metrics = evaluator.evaluate(eval_data_path)
 
     print("\n" + "=" * 80)
     print("✓ EVALUATION COMPLETE")
