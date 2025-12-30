@@ -93,14 +93,14 @@ def main():
         # paths
         model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
         processed_data_dir = Path(
-            config["model"]["output"]["processed_data_dir"]
+            config["data"]["paths"]["processed_data_dir"]
         ).expanduser()
-        figures_dir = Path(config["model"]["output"]["figures_dir"]).expanduser()
+        figures_dir = Path(config["data"]["paths"]["figures_dir"]).expanduser()
 
         # backtest settings
         initial_capital = config["backtest"]["initial_capital"]
         position_size = config["backtest"]["position_size"]
-        save_results = config["backtest"].get(["save_results"], True)
+        save_results = config["backtest"].get("save_results", True)
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
