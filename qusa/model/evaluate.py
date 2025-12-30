@@ -137,7 +137,8 @@ class ModelEvaluator:
 
         return metrics
 
-    def _analyze_calibration(self, y_true, y_prob):
+    @staticmethod
+    def _analyze_calibration(y_true, y_prob):
         """
         Evaluate model prediction calibration.
 
