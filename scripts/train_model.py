@@ -26,7 +26,7 @@ def main():
 
     # 1) set up configuration and logging
     try:
-        config_path = PROJECT_ROOT / "config.yaml"
+        config_path = PROJECT_ROOT / "qusa" / "utils" / "config.yaml"
         config = load_config(str(config_path))
 
         log_dir = config["data"]["paths"].get("predictions_dir", "logs")
@@ -46,7 +46,7 @@ def main():
         # paths
         model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
         processed_data_dir = Path(
-            config["model"]["output"]["processed_data_dir"]
+            config["data"]["paths"]["processed_data_dir"]
         ).expanduser()
         model_output_dir = Path(
             config["model"]["output"]["model_output_path"]
@@ -56,7 +56,7 @@ def main():
         model_output_dir.mkdir(parents=True, exist_ok=True)
 
         # build model training parameter dictionary
-        model_params = config["model"]["params"]
+        model_params = config["model"]["parameters"]
         model_config = {
             "max_depth": model_params.get("max_depth", 5),
             "min_samples_leaf": model_params.get("min_samples_leaf", 10),
