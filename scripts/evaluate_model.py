@@ -24,7 +24,7 @@ def main():
 
     # 1) set up configuration and logging
     try:
-        config_path = PROJECT_ROOT / "config.yaml"
+        config_path = PROJECT_ROOT / "qusa" / "utils" / "config.yaml"
         config = load_config(str(config_path))
 
         # extract log path from config
@@ -44,9 +44,7 @@ def main():
     try:
         tickers = config["data"]["tickers"]
         model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
-        eval_data_dir = Path(
-            config["model"]["output"]["processed_data_dir"]
-        ).expanduser()
+        eval_data_dir = Path(config["data"]["paths"]["processed_data_dir"]).expanduser()
 
         logger.info(f"Starting evaluation for {len(tickers)} tickers: {tickers}")
 
