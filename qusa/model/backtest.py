@@ -99,7 +99,7 @@ class ModelBacktester:
         )
 
         # calculate returns
-        results["returns"] = 0.0
+        results["strategy_return"] = 0.0
 
         for idx in results.index:
             # skip low confidence predictions
@@ -143,80 +143,120 @@ class ModelBacktester:
         print("PERFORMANCE METRICS")
         print("=" * 80)
 
-        # filter to days with trade executed
-        traded = self.results.loc[self.results["high_confidence"]]
+        # handle case with no results
+        if self.results is None:
+            return {}
 
-        # basic statistics
-        total_trades = int(len(traded))  # confirm type INT
-        positive_return_trades = int(
-            len(self.results.loc[self.results["strategy_return"] > 0])
+        # 1) store initial, final values
+        first_equity = float(
+            self.results["portfolio_value"].iloc[0]
+            / self.results["cumulative_return"].iloc[0]
         )
-        negative_return_trades = int(
-            len(self.results.loc[self.results["strategy_return"] < 0])
-        )
+        final_equity = float(self.results["portfolio_value"].iloc[-1])
 
-        # calculate success rate
-        if total_trades > 0:
-            success_rate = positive_return_trades / total_trades
+        # 2) calculate returns/gains
+        ## strategy return
+        if first_equity != 0:
+            strategy_return = (final_equity / first_equity) - 1
+            strategy_gain = strategy_return * first_equity
         else:
-            success_rate = 0
+            strategy_return = 0
 
-        # calculate overall return
-        buy_hold_return = (
-            self.results["buy_hold_value"].iloc[-1]
-            / self.results["buy_hold_value"].iloc[0]
-            - 1
-        ) * 100
-        strategy_return = (
-            self.results["portfolio_value"].iloc[-1]
-            / self.results["portfolio_value"].iloc[0]
-            - 1
-        ) * 100
+        ## buy & hold return
+        first_ticker_close = float(self.results["close"].iloc[0])
+        final_ticker_close = float(self.results["close"].iloc[-1])
+        buy_hold_return = (final_ticker_close / first_ticker_close) - 1
+        buy_hold_gain = buy_hold_return * first_equity
 
-        # calculate risk metrics
-        daily_return = traded["strategy_return"]  # filter returns on traded days
-        volatility = daily_return.std()
+        ## 3) calculate alpha
+        alpha = strategy_return - buy_hold_return
 
-        if volatility > 0:
-            sharpe_ratio = (daily_return.mean() / volatility) * np.sqrt(252)
+        # 4) calculate win/loss percentage
+        ## store total, positive return, and negative return trades
+        trades = self.results.loc[self.results["high_confidence"] == True].copy()
+        trades_positive_return = trades.loc[trades["strategy_return"] > 0]
+        trades_negative_return = trades.loc[trades["strategy_return"] < 0]
+
+        ## 5) calculate win/loss percentages
+        ## count total, positive, and negative return trades
+        trades_count = len(trades)
+        trades_positive_return_count = len(trades_positive_return["strategy_return"])
+        trades_negative_return_count = len(trades_negative_return["strategy_return"])
+        ## calculate win percentages
+        if trades_count > 0:
+            win_rate = trades_positive_return_count / trades_count
+        else:
+            win_rate = 0
+        ## calculate loss percentage
+        loss_rate = 1 - win_rate
+
+        # 6) calculate risk metrics
+        ## annualized volatility (assume 252 trading days)
+        daily_std = float(self.results["strategy_return"].std())
+        annual_vol = daily_std * np.sqrt(252)
+
+        ## Sharpe ratio (assume risk-free rate = 0.0%)
+        daily_mean = float(self.results["strategy_return"].mean())
+
+        if annual_vol != 0:
+            sharpe_ratio = (daily_mean / daily_std) * np.sqrt(252)
         else:
             sharpe_ratio = 0
 
-        # calculate draw down
-        cumulative = self.results["portfolio_value"]
-        running_max = cumulative.expanding().max()
-        draw_down = (cumulative - running_max) / running_max * 100
-        max_draw_down = draw_down.min()
+        ## max draw down
+        rolling_max = self.results["portfolio_value"].cummax()
+        draw_down = (self.results["portfolio_value"] / rolling_max) - 1
+        max_draw_down = float(draw_down.min())
 
-        # print metrics
-        print(f"\nTrading Statistics:")
-        print(f"  Total trades: {total_trades}")
-        print(f"  Winning trades: {positive_return_trades}")
-        print(f"  Losing trades: {negative_return_trades}")
-        print(f"  Win rate: {success_rate:.1%}")
-
-        print(f"\nReturn Metrics:")
-        print(f"  Strategy return: {strategy_return:+.2f}%")
-        print(f"  Buy & Hold return: {buy_hold_return:+.2f}%")
-        print(f"  Alpha: {strategy_return - buy_hold_return:+.2f}%")
-
-        print(f"\nRisk Metrics:")
-        print(f"  Volatility (daily): {volatility:.2f}%")
-        print(f"  Sharpe ratio: {sharpe_ratio:.2f}")
-        print(f"  Max draw_down: {max_draw_down:.2f}%")
-
-        # store metrics in dictionary
+        # 5) compile metrics dictionary
         metrics = {
-            "total_trades": total_trades,
-            "success_rate": success_rate,
+            "total_trades": trades_count,
+            "winning_trades": trades_positive_return_count,
+            "losing_trades": trades_negative_return_count,
+            "win_percentage": win_rate,
+            "loss_percentage": loss_rate,
             "strategy_return": strategy_return,
             "buy_hold_return": buy_hold_return,
+            "strategy_gain": strategy_gain,
+            "buy_hold_gain": buy_hold_gain,
+            "alpha": alpha,
+            "annual_volatility": annual_vol,
             "sharpe_ratio": sharpe_ratio,
-            "max_draw_down": max_draw_down,
-            "alpha": strategy_return - buy_hold_return,
+            "max_draw_down": max_draw_down * 100,
         }
 
+        self._print_results_to_console(metrics)
+
         return metrics
+
+    @staticmethod
+    def _print_results_to_console(metrics):
+        """
+        Print performance metrics to console.
+
+        Parameters:
+            1) metrics (dict): Performance metrics
+        """
+
+        print("\n" + "=" * 30)
+        print(" BACKTEST SUMMARY")
+        print("=" * 30)
+        print(f"Total Trades:       {metrics['total_trades']}")
+        print(f"Winning Trades:     {metrics['winning_trades']}")
+        print(f"Losing Trades:      {metrics['losing_trades']}")
+        print(f"Win Rate:           {metrics['win_percentage']*100:.2f}%")
+        print(f"Loss Rate:          {metrics['loss_percentage']*100:.2f}%")
+        print(f"Strategy Return:    {metrics['strategy_return']*100:.2f}%")
+        print(f"Buy & Hold Return:  {metrics['buy_hold_return']*100:.2f}%")
+        print(f"Strategy Gain:      ${metrics['strategy_gain']:.2f}")
+        print(f"Buy & Hold Gain:    ${metrics['buy_hold_gain']:.2f}")
+        print(f"Alpha:              {metrics['alpha']:.2f}")
+        print(f"Annual Volatility:  {metrics['annual_volatility']:.2f}")
+        print(f"Sharpe Ratio:       {metrics['sharpe_ratio']:.2f}")
+        print(f"Max Draw down:      {metrics['max_draw_down']:.2f}%")
+        print("=" * 30)
+
+        return
 
     def plot_results(self, save_path):
         """
