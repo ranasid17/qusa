@@ -5,7 +5,6 @@ Evaluate model performance.
 """
 
 import joblib
-import numpy as np
 import os
 import pandas as pd
 
@@ -14,8 +13,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
-    confusion_matrix,
-    classification_report,
+    confusion_matrix
 )
 
 
