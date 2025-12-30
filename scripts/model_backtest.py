@@ -1,11 +1,10 @@
-# qusa/scripts/run_backtest.py
+# qusa/scripts/model_backtest.py
 
 """
 Run backtest on a trained model for a specified stock ticker.
 """
 
 import json
-import logging
 import sys
 
 from datetime import datetime
@@ -74,7 +73,7 @@ def main():
 
     # 1) set up configuration and logging
     try:
-        config_path = PROJECT_ROOT / "config.yaml"
+        config_path = PROJECT_ROOT / "qusa" / "utils" / "config.yaml"
         config = load_config(str(config_path))
 
         # extract log path from config

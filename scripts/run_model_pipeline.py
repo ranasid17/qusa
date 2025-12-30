@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# qusa/scripts/run_full_pipeline.py
+# qusa/scripts/run_model_pipeline.py
 
 """
 Master Pipeline Orchestrator for QUSA.

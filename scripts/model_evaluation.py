@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# scripts/evaluate_model.py
+# scripts/model_evaluation.py
 """
 Evaluate trained model on test data.
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# scripts/make_prediction.py
+# qusa/scripts/model_prediction.py
 
 """
 Make prediction on the most recent trading day.

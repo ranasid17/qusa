@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# qusa/scripts/train_model.py
+# qusa/scripts/model_training.py
 
 """
 Train overnight delta direction model.
