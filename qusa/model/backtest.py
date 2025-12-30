@@ -81,22 +81,22 @@ class ModelBacktester:
         print("=" * 80)
 
         # prepare features
-        X = self.data[self.features].fillna(0)
+        x = self.data[self.features].fillna(0)
 
         # make predictions and store likelihoods
-        predictions = self.model.predict(X)
-        probabilities = self.model.predict_proba(X)[:, 1]
+        predictions = self.model.predict(x)
+        probabilities = self.model.predict_proba(x)[:, 1]
 
         # store results as DataFrame
         results = self.data[["date", "close", "overnight_delta"]].copy()
-        results["prediction"] = predictions
-        results["probability_up"] = probabilities
+        results["predicted_direction"] = predictions
+        results["predicted_probability"] = probabilities
         results["true_direction"] = (results["overnight_delta"] > 0).astype(int)
 
         # label high confidence predictions
-        results["high_confidence"] = (results["probability_up"] >= self.threshold) | (
-            results["probability_up"] <= (1 - self.threshold)
-        )
+        results["high_confidence"] = (
+            results["predicted_probability"] >= self.threshold
+        ) | (results["predicted_probability"] <= (1 - self.threshold))
 
         # calculate returns
         results["strategy_return"] = 0.0
@@ -107,7 +107,7 @@ class ModelBacktester:
                 continue
 
             # store predicted direction and true return
-            prediction = results.loc[idx, "prediction"]
+            prediction = results.loc[idx, "predicted_direction"]
             actual_return = results.loc[idx, "overnight_delta"]
 
             # handle cases when model indicates buy
@@ -147,28 +147,24 @@ class ModelBacktester:
         if self.results is None:
             return {}
 
-        # 1) store initial, final values
+        # 1) store first, final equity values for strategy and buy & hold
         first_equity = float(
             self.results["portfolio_value"].iloc[0]
             / self.results["cumulative_return"].iloc[0]
         )
-        final_equity = float(self.results["portfolio_value"].iloc[-1])
+        final_equity_strategy = float(self.results["portfolio_value"].iloc[-1])
+        final_equity_buy_hold = float(self.results["buy_hold_value"].iloc[-1])
 
-        # 2) calculate returns/gains
+        # 2) calculate performance for strategy and buy & hold
         ## strategy return
-        if first_equity != 0:
-            strategy_return = (final_equity / first_equity) - 1
-            strategy_gain = strategy_return * first_equity
-        else:
-            strategy_return = 0
+        strategy_gain = final_equity_strategy - first_equity
+        strategy_return = strategy_gain / first_equity
 
         ## buy & hold return
-        first_ticker_close = float(self.results["close"].iloc[0])
-        final_ticker_close = float(self.results["close"].iloc[-1])
-        buy_hold_return = (final_ticker_close / first_ticker_close) - 1
-        buy_hold_gain = buy_hold_return * first_equity
+        buy_hold_gain = final_equity_buy_hold - first_equity
+        buy_hold_return = buy_hold_gain / first_equity
 
-        ## 3) calculate alpha
+        ## 2) calculate alpha
         alpha = strategy_return - buy_hold_return
 
         # 4) calculate win/loss percentage
@@ -219,6 +215,8 @@ class ModelBacktester:
             "buy_hold_return": buy_hold_return,
             "strategy_gain": strategy_gain,
             "buy_hold_gain": buy_hold_gain,
+            "strategy_value": final_equity_strategy,
+            "buy_hold_value": final_equity_buy_hold,
             "alpha": alpha,
             "annual_volatility": annual_vol,
             "sharpe_ratio": sharpe_ratio,
@@ -248,8 +246,8 @@ class ModelBacktester:
         print(f"Loss Rate:          {metrics['loss_percentage']*100:.2f}%")
         print(f"Strategy Return:    {metrics['strategy_return']*100:.2f}%")
         print(f"Buy & Hold Return:  {metrics['buy_hold_return']*100:.2f}%")
-        print(f"Strategy Gain:      ${metrics['strategy_gain']:.2f}")
-        print(f"Buy & Hold Gain:    ${metrics['buy_hold_gain']:.2f}")
+        print(f"Strategy Value:     ${metrics['strategy_value']:.2f}")
+        print(f"Buy & Hold Value:   ${metrics['buy_hold_value']:.2f}")
         print(f"Alpha:              {metrics['alpha']:.2f}")
         print(f"Annual Volatility:  {metrics['annual_volatility']:.2f}")
         print(f"Sharpe Ratio:       {metrics['sharpe_ratio']:.2f}")
@@ -270,12 +268,19 @@ class ModelBacktester:
 
         # plot 1: portfolio value vs buy & hold
         ax[0].plot(
-            self.results["date"], self.results["portfolio_value"], label="Strategy"
+            self.results["date"],
+            self.results["portfolio_value"],
+            label="Strategy",
+            color="#0f4c5c",
+            linestyle="--",
         )
         ax[0].plot(
-            self.results["date"], self.results["buy_hold_value"], label="Buy & Hold"
+            self.results["date"],
+            self.results["buy_hold_value"],
+            label="Buy & Hold",
+            color="#9a031e",
         )
-        ax[0].set_title("Portfolio Value Over Time", fontsize=14)
+        ax[0].set_title("Portfolio Value", fontsize=14)
         ax[0].set_xlabel("Date", fontsize=12)
         ax[0].set_ylabel("Portfolio Value ($)", fontsize=12)
         ax[0].legend()
@@ -284,16 +289,16 @@ class ModelBacktester:
         cumulative = self.results["portfolio_value"]
         running_max = cumulative.expanding().max()
         draw_down = (cumulative - running_max) / running_max * 100
-        ax[1].plot(self.results["date"], draw_down, color="darkred")
+        ax[1].plot(self.results["date"], draw_down, color="#9a031e")
         ax[1].fill_between(
             self.results["date"],
             draw_down,
             0,
             where=(draw_down < 0),
-            color="red",
+            color="#ef233c",
             alpha=0.3,
         )
-        ax[1].set_title("Draw Down Over Time", fontsize=14)
+        ax[1].set_title("Draw Down", fontsize=14)
         ax[1].set_xlabel("Date", fontsize=12)
         ax[1].set_ylabel("Draw Down (%)", fontsize=12)
 
@@ -302,7 +307,9 @@ class ModelBacktester:
         ax[2].scatter(
             traded["date"],
             traded["strategy_return"],
-            c=traded["strategy_return"].apply(lambda x: "g" if x > 0 else "r"),
+            c=traded["strategy_return"].apply(
+                lambda x: "#0f4c5c" if x > 0 else "#9a031e"
+            ),
         )
         ax[2].axhline(0, color="black", linestyle="--", linewidth=0.8)
         ax[2].set_title("Trade Returns Distribution", fontsize=14)
