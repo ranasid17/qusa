@@ -91,9 +91,7 @@ class ModelBacktester:
         results = self.data[["date", "close", "overnight_delta"]].copy()
         results["prediction"] = predictions
         results["probability_up"] = probabilities
-        results["true_direction"] = results.loc[results["overnight_delta"] > 0].astype(
-            int
-        )
+        results["true_direction"] = (results["overnight_delta"] > 0).astype(int)
 
         # label high confidence predictions
         results["high_confidence"] = (results["probability_up"] >= self.threshold) | (
@@ -149,9 +147,13 @@ class ModelBacktester:
         traded = self.results.loc[self.results["high_confidence"]]
 
         # basic statistics
-        total_trades = len(traded)
-        positive_return_trades = self.results.loc[self.results["strategy_return"] > 0]
-        negative_return_trades = self.results.loc[self.results["strategy_return"] < 0]
+        total_trades = int(len(traded))  # confirm type INT
+        positive_return_trades = int(
+            len(self.results.loc[self.results["strategy_return"] > 0])
+        )
+        negative_return_trades = int(
+            len(self.results.loc[self.results["strategy_return"] < 0])
+        )
 
         # calculate success rate
         if total_trades > 0:
@@ -271,7 +273,6 @@ class ModelBacktester:
 
         # save plot
         save_path = os.path.expanduser(save_path)
-        os.makedirs(save_path, exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
 
