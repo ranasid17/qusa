@@ -69,6 +69,12 @@ class ModelEvaluator:
         # load test data
         data = pd.read_csv(os.path.expanduser(test_data_path))
 
+        # define target feature if not present
+        if ("target" not in data.columns) and ("overnight_delta" in data.columns):
+            data["target"] = (data["overnight_delta"] > 0).astype(int)
+        elif "target" not in data.columns:
+            raise KeyError("Neither 'target' nor 'overnight_delta' found in test data.")
+
         # define target feature
         y_target = (data["target"] > 0).astype(int)
 
@@ -81,6 +87,8 @@ class ModelEvaluator:
 
         # calculate metrics
         metrics = self._calculate_metrics(y_target, y_pred, y_prob)
+        metrics["calibration"] = self._analyze_calibration(y_target, y_prob)
+        self._print_metrics(metrics)
 
         # print results
         self._print_metrics(metrics)
@@ -129,7 +137,7 @@ class ModelEvaluator:
             metrics["high_confidence_coverage"] = 0
             metrics["high_confidence_accuracy"] = 0
 
-        return
+        return metrics
 
     def _analyze_calibration(self, y_true, y_prob):
         """
@@ -186,10 +194,11 @@ class ModelEvaluator:
         print(f"  Coverage: {metrics['high_confidence_coverage']:.1%}")
         print(f"  Accuracy: {metrics['high_confidence_accuracy']:.3f}")
 
-        print(f"\nProbability Calibration:")
-        print(metrics["calibration"])
+        if "calibration" in metrics:
+            print(f"\nProbability Calibration:")
+            print(metrics["calibration"])
 
-        return metrics
+        return
 
 
 def evaluate_model(model_path, eval_data_path):
