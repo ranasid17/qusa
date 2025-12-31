@@ -100,6 +100,7 @@ def main():
         # backtest settings
         initial_capital = config["backtest"]["initial_capital"]
         position_size = config["backtest"]["position_size"]
+        transaction_cost = config["backtest"]["transaction_cost"]
         save_results = config["backtest"].get("save_results", True)
 
     except KeyError as e:
@@ -135,7 +136,9 @@ def main():
             # execute backtest
             logger.info(f"Running backtest for {ticker}...")
             backtester.run_backtest(
-                initial_capital=initial_capital, position_size=position_size
+                initial_capital=initial_capital,
+                position_size=position_size,
+                transaction_cost=transaction_cost,
             )
             logger.info(f"Completed backtest for {ticker}")
 
