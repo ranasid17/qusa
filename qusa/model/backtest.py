@@ -64,66 +64,57 @@ class ModelBacktester:
 
         return
 
-    def run_backtest(self, initial_capital, position_size):
+    def run_backtest(self, initial_capital, position_size, transaction_cost):
         """
-        Simulate backtest on model.
-
-        Parameters:
-            1) initial_capital (float): Starting investment capital
-            2) position_size (float): Fraction of capital to use per trade
-
-        Returns:
-            1) result (pd.DataFrame): Backtest result
+        Simulate backtest on model with corrected loop logic.
         """
-
         print("\n" + "=" * 80)
-        print("RUNNING BACKTEST")
+        print(f"RUNNING BACKTEST (Friction: {transaction_cost}%)")
         print("=" * 80)
 
-        # prepare features
+        # Prepare features and predictions
         x = self.data[self.features].fillna(0)
-
-        # make predictions and store likelihoods
         predictions = self.model.predict(x)
         probabilities = self.model.predict_proba(x)[:, 1]
 
-        # store results as DataFrame
+        # Setup results DataFrame
         results = self.data[["date", "close", "overnight_delta"]].copy()
         results["predicted_direction"] = predictions
         results["predicted_probability"] = probabilities
-        results["true_direction"] = (results["overnight_delta"] > 0).astype(int)
 
-        # label high confidence predictions
+        # Determine confidence
         results["high_confidence"] = (
             results["predicted_probability"] >= self.threshold
         ) | (results["predicted_probability"] <= (1 - self.threshold))
 
-        # calculate returns
+        # Initialize return columns with 0.0 to avoid NaN issues later
         results["strategy_return"] = 0.0
+        results["gross_strategy_return"] = 0.0
 
         for idx in results.index:
-            # skip low confidence predictions
             if not results.loc[idx, "high_confidence"]:
                 continue
 
-            # store predicted direction and true return
             prediction = results.loc[idx, "predicted_direction"]
             actual_return = results.loc[idx, "overnight_delta"]
 
-            # handle cases when model indicates buy
+            # Calculate gross return
             if prediction == 1:
-                results.loc[idx, "strategy_return"] = actual_return * position_size
-            # otherwise model indicates short sell/do not buy
+                gross = actual_return * position_size
             else:
-                results.loc[idx, "strategy_return"] = -actual_return * position_size
+                gross = -actual_return * position_size
 
-        # calculate cumulative returns
+            # Store values using .at or .loc specifically for the current index
+            results.at[idx, "gross_strategy_return"] = gross
+            results.at[idx, "strategy_return"] = gross - transaction_cost
+
+        # Calculate cumulative returns
         results["cumulative_return"] = (
             1 + (results["strategy_return"] / 100)
         ).cumprod()
         results["portfolio_value"] = initial_capital * results["cumulative_return"]
 
-        # benchmark to buy/hold
+        # Benchmark
         first_close = results["close"].iloc[0]
         results["buy_hold_value"] = initial_capital * (results["close"] / first_close)
 
@@ -242,13 +233,19 @@ class ModelBacktester:
         print(f"Total Trades:       {metrics['total_trades']}")
         print(f"Winning Trades:     {metrics['winning_trades']}")
         print(f"Losing Trades:      {metrics['losing_trades']}")
-        print(f"Win Rate:           {metrics['win_percentage']*100:.2f}%")
-        print(f"Loss Rate:          {metrics['loss_percentage']*100:.2f}%")
-        print(f"Strategy Return:    {metrics['strategy_return']*100:.2f}%")
-        print(f"Buy & Hold Return:  {metrics['buy_hold_return']*100:.2f}%")
-        print(f"Strategy Value:     ${metrics['strategy_value']:.2f}")
-        print(f"Buy & Hold Value:   ${metrics['buy_hold_value']:.2f}")
+        print(f"Win Rate:           {metrics['win_percentage'] * 100:.2f}%")
+        print(f"Loss Rate:          {metrics['loss_percentage'] * 100:.2f}%")
+        print("-" * 30)
+        print(f"Strategy Return:    {metrics['strategy_return'] * 100:.2f}%")
+        print(f"Buy & Hold Return:  {metrics['buy_hold_return'] * 100:.2f}%")
         print(f"Alpha:              {metrics['alpha']:.2f}")
+        print("-" * 30)
+        print(f"Final Strategy Val: ${metrics['strategy_value']:,.2f}")
+        print(f"Final Buy & Hold:   ${metrics['buy_hold_value']:,.2f}")
+        print("-" * 30)
+        print(f"Strategy Profit:    ${metrics['strategy_gain']:,.2f}")
+        print(f"Buy & Hold Profit:  ${metrics['buy_hold_gain']:,.2f}")
+        print("-" * 30)
         print(f"Annual Volatility:  {metrics['annual_volatility']:.2f}")
         print(f"Sharpe Ratio:       {metrics['sharpe_ratio']:.2f}")
         print(f"Max Draw down:      {metrics['max_draw_down']:.2f}%")
