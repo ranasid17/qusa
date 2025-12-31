@@ -49,7 +49,7 @@ model:
     random_state: 42
     test_size: 0.25
     cv: 5
-    probability_threshold: 0.6
+    probability_threshold: 0.7
 
 evaluation:
   save_results: true
@@ -65,6 +65,7 @@ prediction:
 backtest:
     initial_capital: 10000
     position_size: 0.95
+    transaction_cost: 0.05      # % cost per trade (slippage + spread)
     save_results: true
     save_plots: true
 
