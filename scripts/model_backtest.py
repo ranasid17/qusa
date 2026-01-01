@@ -143,7 +143,7 @@ def main():
             logger.info(f"Completed backtest for {ticker}")
 
             # retrieve performance metrics
-            metrics = backtester.calculate_metrics()
+            metrics = backtester.calculate_metrics(initial_capital)
 
             roi = metrics.get("strategy_return", 0.0)
             sharpe = metrics.get("sharpe_ratio", 0.0)
