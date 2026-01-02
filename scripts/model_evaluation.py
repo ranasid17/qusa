@@ -46,7 +46,21 @@ def main():
         model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
         eval_data_dir = Path(config["data"]["paths"]["processed_data_dir"]).expanduser()
 
+        # LLM config
+        llm_config = config.get("llm", {})
+        enable_reports = llm_config.get("enable_reports", True)
+        llm = llm_config.get("model_name", "gemma3:4b")
+        temp = llm_config.get("temperature", 0.2)
+        max_context_rows = llm_config.get("max_context_rows", 100)
+        base_output_dir = Path(
+            llm_config.get("output_dir", "~/Projects/qusa/reports")
+        ).expanduser()
+        subdir = llm_config.get("report_subdir", {}).get("evaluation", "evaluation")
+
+        report_output_dir = base_output_dir / subdir
+
         logger.info(f"Starting evaluation for {len(tickers)} tickers: {tickers}")
+        logger.info(f"LLM Reports: {'Enabled' if enable_reports else 'Disabled'}")
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
@@ -81,18 +95,25 @@ def main():
             logger.info(f"Evaluation results: {metrics}")
 
             # generate AI report
-            try:
-                report = generate_evaluation_report(
-                    metrics=metrics,
-                    ticker=ticker,
-                    output_dir="~/Projects/qusa/reports/evaluation",
-                )
-                logger.info("✓ Evaluation report generated")
+            if enable_reports:
+                try:
+                    logger.info("Generating AI-powered evaluation report...")
 
-            except Exception as e:
-                logger.warning(f"⚠ Report generation failed: {e}")
+                    report = generate_evaluation_report(
+                        metrics=metrics,
+                        ticker=ticker,
+                        llm_name=llm,
+                        output_dir=str(report_output_dir),
+                        temperature=temp,
+                        max_context_rows=max_context_rows,
+                    )
+                    logger.info("✓ Evaluation report generated")
 
-            success_count += 1
+                except Exception as e:
+                    logger.warning(f"⚠ Report generation failed: {e}")
+                    logger.debug("Full traceback:", exc_info=True)
+
+                success_count += 1
 
         except Exception as e:
             logger.error(f"✗ Error evaluating {ticker}: {str(e)}", exc_info=True)
