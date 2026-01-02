@@ -12,7 +12,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-from qusa.model import evaluate_model
+from qusa.model import evaluate_model, generate_evaluation_report
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
@@ -79,6 +79,18 @@ def main():
                 model_path=str(model_path), eval_data_path=str(eval_data_path)
             )
             logger.info(f"Evaluation results: {metrics}")
+
+            # generate AI report
+            try:
+                report = generate_evaluation_report(
+                    metrics=metrics,
+                    ticker=ticker,
+                    output_dir="~/Projects/qusa/reports/evaluation",
+                )
+                logger.info("✓ Evaluation report generated")
+
+            except Exception as e:
+                logger.warning(f"⚠ Report generation failed: {e}")
 
             success_count += 1
 

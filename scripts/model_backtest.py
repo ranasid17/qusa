@@ -14,8 +14,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from qusa.model import ModelBacktester
-from qusa.model.reporter import generate_backtest_report
+from qusa.model import ModelBacktester, generate_backtest_report
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
