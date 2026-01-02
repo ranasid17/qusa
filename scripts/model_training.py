@@ -14,7 +14,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-from qusa.model import train_model
+from qusa.model import train_model, generate_training_report
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
@@ -106,6 +106,18 @@ def main():
             acc = metrics.get("accuracy", 0.0)
             logger.info(f"Model training metrics for {ticker}: Accuracy = {acc:.4f}")
             logger.info(f"   Model saved to: {model_save_path}")
+
+            # generate AI report
+            try:
+                report = generate_training_report(
+                    metrics=metrics,
+                    ticker=ticker,
+                    output_dir="~/Projects/qusa/reports/training",
+                )
+                logger.info("✓ Training report generated")
+
+            except Exception as e:
+                logger.warning(f"⚠ Report generation failed: {e}")
 
             success_count += 1
 
