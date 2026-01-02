@@ -69,6 +69,24 @@ backtest:
     save_results: true
     save_plots: true
 
+# ------------------
+# LLM Settings
+# ------------------
+llm:
+  model_name: "gemma3:4b"                 # Ollama model to use
+  temperature: 0.3
+  max_context_rows: 10                    # Max rows of data to include in context
+  output_dir: "~/Projects/qusa/reports"   # Base directory for all reports
+  enable_reports: true                    # Master switch to enable/disable AI reports
+  report_subdir:
+    backtest: "backtest"
+    evaluation: "evaluation"
+    training: "training"
+    interpretation: "interpretation"
+
+# ------------------
+# Full modeling pipeline settings
+# ------------------
 pipeline:
   skip_fe: false
   skip_clustering: false
