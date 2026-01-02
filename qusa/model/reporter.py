@@ -523,18 +523,18 @@ class StrategyReporter:
     Begin your analysis:""",
     }
 
-    def __init__(self, llm_model, output_dir, temperature, max_context_rows):
+    def __init__(self, llm_name, output_dir, temperature, max_context_rows):
         """
         Initialize the StrategyReporter with LLM settings.
 
         Parameters:
-            1) llm_model (str): Local LLM model name to use (e.g., "llama2-7b").
+            1) llm_name (str): Local LLM model name to use (e.g., "llama2-7b").
             2) output_dir (str): Directory to save generated reports.
             3) temperature (float): Temperature setting for LLM generation.
             4) max_context_rows (int): Max rows of data to include in context.
         """
 
-        self.model_name = llm_model
+        self.model_name = llm_name
         self.output_dir = Path(output_dir).expanduser()
         self.temperature = temperature
         self.max_context_rows = max_context_rows
@@ -671,7 +671,7 @@ class StrategyReporter:
             return prompt
 
         elif report_type == "model_interpretation":
-            if not "model_interpretation":
+            if not model_interpretation:
                 raise ValueError(
                     "model_interpretation data required for this report type"
                 )
@@ -695,7 +695,7 @@ class StrategyReporter:
                 ),
                 feature_importance=feature_string,
                 decision_rules=json.dumps(
-                    model_interpretation.get("limitations", {}), indent=2
+                    model_interpretation.get("decision_rules", "N/A"), indent=2
                 ),
                 limitations=json.dumps(
                     model_interpretation.get("limitations", {}), indent=2
