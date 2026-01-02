@@ -15,13 +15,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
 from qusa.model import ModelBacktester
+from qusa.model.reporter import generate_backtest_report
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
 
 def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
     """
-    Save backtest artifacts: metrics and plots.
+    Save backtest artifacts: metrics, plots, and AI report.
 
     Parameters:
         1) backtester (ModelBacktester): Backtester instance
@@ -57,11 +58,26 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
 
     # 3) save plots
     plot_path = output_path / f"backtest_plot_{ticker}_{timestamp}.png"
-    backtester = backtester.plot_results(save_path=str(plot_path))
+    backtester.plot_results(save_path=str(plot_path))
 
     ## Note: plot_results in the class prints confirmation,
     ##       but will re-log here for consistency in log file
     logger.info(f"✓ Backtest plot saved to {plot_path}")
+
+    # generate AI report
+    try:
+        logger.info("Generating AI-powered backtest report...")
+        report = generate_backtest_report(
+            metrics=metrics,
+            results_df=backtester.results,
+            ticker=ticker,
+            model_name="gemma3:12b",
+            output_dir=str(output_path / "reports"),
+        )
+        logger.info("✓ AI report generated successfully")
+
+    except Exception as e:
+        logger.warning(f"⚠ Could not generate AI report: {e}")
 
     return
 
@@ -163,7 +179,7 @@ def main():
 
     # 4) summarize results
     logger.info(f"{'=' * 40}")
-    logger.info(f"Successfully backtested {success_count}/{len(tickers)} tickers.")
+    logger.info(f"Successfully back tested {success_count}/{len(tickers)} tickers.")
 
 
 if __name__ == "__main__":
