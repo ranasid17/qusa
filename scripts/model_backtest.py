@@ -19,7 +19,7 @@ from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
 
-def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
+def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, config):
     """
     Save backtest artifacts: metrics, plots, and AI report.
 
@@ -29,6 +29,7 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
         3) output_dir (Path): Directory to save artifacts
         4) ticker (str): Stock ticker
         5) logger (logging.Logger): Logger instance
+        6) config (dict): Configuration dictionary
     """
 
     # create output directory if not exists
@@ -63,20 +64,42 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
     ##       but will re-log here for consistency in log file
     logger.info(f"✓ Backtest plot saved to {plot_path}")
 
-    # generate AI report
+    # 4) generate AI report
+    llm_config = config.get("llm", {})
+    enable_reports = llm_config.get("enable_reports", True)
+
+    if not enable_reports:
+        logger.info("AI report generation disabled in config")
+        return
+
     try:
         logger.info("Generating AI-powered backtest report...")
+
+        # extract LLM settings from config
+        llm = llm_config.get("model_name", "gemma3:4b")
+        temp = llm_config.get("temp", 0.2)
+        max_context_rows = llm_config.get("max_context_rows", 100)
+        base_output_dir = llm_config.get(
+            "output_dir", "~/Projects/qusa/reports"
+        ).expanduser()
+        subdir = llm_config.get("report_subdir", {}).get("backtest", "backtest")
+
+        report_output_dir = base_output_dir / subdir
+
         report = generate_backtest_report(
             metrics=metrics,
             results_df=backtester.results,
             ticker=ticker,
-            model_name="gemma3:12b",
-            output_dir=str(output_path / "reports"),
+            llm_name=llm,
+            output_dir=str(report_output_dir),
+            temperature=temp,
+            max_content_rows=max_context_rows,
         )
         logger.info("✓ AI report generated successfully")
 
     except Exception as e:
         logger.warning(f"⚠ Could not generate AI report: {e}")
+        logger.debug("Full traceback:", exc_info=True)
 
     return
 
