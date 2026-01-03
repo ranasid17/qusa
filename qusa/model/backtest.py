@@ -216,7 +216,7 @@ class ModelBacktester:
         print("-" * 30)
         print(f"Strategy Return:    {metrics['strategy_return'] * 100:.2f}%")
         print(f"Buy & Hold Return:  {metrics['buy_hold_return'] * 100:.2f}%")
-        print(f"Alpha:              {metrics['alpha'] * 100:.2f}%")
+        print(f"Alpha:              {metrics['alpha']:.2f}")
         print("-" * 30)
         print(f"Final Strategy Val: ${metrics['strategy_value']:,.2f}")
         print(f"Final Buy & Hold:   ${metrics['buy_hold_value']:,.2f}")
