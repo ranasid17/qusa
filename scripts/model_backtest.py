@@ -190,7 +190,7 @@ def main():
             # save artifacts if enabled
             if save_results:
                 save_backtest_artifacts(
-                    backtester, metrics, figures_dir, ticker, logger
+                    backtester, metrics, figures_dir, ticker, logger, config
                 )
 
             success_count += 1
