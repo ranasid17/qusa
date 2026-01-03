@@ -9,6 +9,7 @@ from .evaluate import evaluate_model
 from .reporter import (
     generate_backtest_report,
     generate_evaluation_report,
+    generate_model_interpretation_report,
     generate_training_report,
 )
 from .predict import make_prediction, LivePredictor
@@ -20,6 +21,7 @@ __all__ = [
     "generate_backtest_report",
     "generate_evaluation_report",
     "generate_training_report",
+    "generate_model_interpretation_report",
     "LivePredictor",
     "train_model",
     "make_prediction",
