@@ -14,7 +14,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-from qusa.model import train_model, generate_training_report
+from qusa.model import (
+    train_model,
+    generate_training_report,
+    generate_model_interpretation_report,
+)
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
@@ -68,8 +72,29 @@ def main():
             "probability_threshold": model_params.get("probability_threshold", 0.6),
         }
 
+        llm_config = config.get("llm", {})
+
+        enable_reports = llm_config.get("enable_reports", True)
+        llm = llm_config.get("model_name", "gemma3:4b")
+        temp = llm_config.get("temperature", 0.3)
+        max_context_rows = llm_config.get("max_context_rows", 10)
+        base_output_dir = Path(
+            llm_config.get("output_dir", "~/Projects/qusa/reports")
+        ).expanduser()
+        training_subdir = llm_config.get("report_subdir", {}).get(
+            "training", "training"
+        )
+
+        interpretation_subdir = llm_config.get("report_subdir", {}).get(
+            "interpretation", "interpretation"
+        )
+
+        training_report_dir = base_output_dir / training_subdir
+        interpretation_report_dir = base_output_dir / interpretation_subdir
+
         logger.info(f"Training Tickers: {tickers}")
         logger.info(f"Model Parameters: {model_config}")
+        logger.info(f"LLM Reports: {'Enabled' if enable_reports else 'Disabled'}")
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
@@ -107,22 +132,53 @@ def main():
             logger.info(f"Model training metrics for {ticker}: Accuracy = {acc:.4f}")
             logger.info(f"   Model saved to: {model_save_path}")
 
-            # generate AI report
-            try:
-                report = generate_training_report(
-                    metrics=metrics,
-                    ticker=ticker,
-                    output_dir="~/Projects/qusa/reports/training",
-                )
-                logger.info("✓ Training report generated")
+            # generate AI reports
+            if enable_reports:
+                try:
+                    # attempt to generate training report
+                    logger.info("Generating training report...")
 
-            except Exception as e:
-                logger.warning(f"⚠ Report generation failed: {e}")
+                    training_report = generate_training_report(
+                        metrics=metrics,
+                        ticker=ticker,
+                        llm_name=llm,
+                        output_dir=str(training_report_dir),
+                        temperature=temp,
+                        max_context_rows=max_context_rows,
+                    )
+
+                    logger.info("✓ Training report generated")
+
+                except Exception as e:
+                    logger.warning(f"⚠ Report generation failed: {e}")
+
+                try:
+                    # attempt to generate interpretation report
+                    logger.info("Generating model interpretation report...")
+
+                    interpretation_report = generate_model_interpretation_report(
+                        model_path=str(model_save_path),
+                        data_path=str(data_path),
+                        ticker=ticker,
+                        llm_name=llm,
+                        output_dir=str(interpretation_report_dir),
+                        temperature=temp,
+                        max_context_rows=max_context_rows,  #
+                    )
+
+                    logger.info(
+                        f"✓ Model interpretation report generated at {interpretation_report_dir}"
+                    )
+
+                except Exception as e:
+                    logger.warning(f"⚠ Interpretation report failed: {e}")
+                    logger.debug("Full traceback:", exc_info=True)
 
             success_count += 1
 
         except Exception as e:
             logger.error(f"✗ Error training model for {ticker}: {e}")
+            logger.debug("Full traceback:", exc_info=True)
             continue  # proceed to next ticker
 
     # 4) summary
