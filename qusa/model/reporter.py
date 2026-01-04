@@ -70,6 +70,9 @@ class StrategyReporter:
             self.output_dir = Path(self.output_dir).expanduser().resolve()
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        else:
+            print("Pass config to initialize object")
+
         return
 
     def _call_llm(self, prompt, system_prompt=None):
