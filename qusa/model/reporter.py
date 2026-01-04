@@ -9,6 +9,7 @@ import joblib
 import ollama
 import os
 import pandas as pd
+import requests
 
 from datetime import datetime
 from pathlib import Path
@@ -525,70 +526,61 @@ class StrategyReporter:
     Begin your analysis:""",
     }
 
-    def __init__(self, llm_name, output_dir, temperature, max_context_rows):
+    def __init__(
+        self,
+        config=None,
+        model_name=None,
+        base_url=None,
+        temperature=None,
+        max_tokens=None,
+        output_dir=None,
+        save_default=None,
+    ):
         """
-        Initialize the StrategyReporter with LLM settings.
+        Initialize reporter with config or explicit parameters.
 
         Parameters:
-            1) llm_name (str): Local LLM model name to use (e.g., "llama2-7b").
-            2) output_dir (str): Directory to save generated reports.
-            3) temperature (float): Temperature setting for LLM generation.
-            4) max_context_rows (int): Max rows of data to include in context.
+            1) config (dict, optional): Configuration dictionary
+            2) model_name (str, optional): LLM model name (overrides config)
+            3) base_url (str, optional): Ollama API URL (overrides config)
+            4) temperature (float, optional): Sampling temperature (overrides config)
+            5) max_tokens (int, optional): Max response tokens (overrides config)
+            6) output_dir (str, optional): Report output directory (overrides config)
+            7) save_default (bool, optional): Default save behavior (overrides config)
         """
 
-        self.model_name = llm_name
-        self.output_dir = Path(str(output_dir)).expanduser()
-        self.temperature = temperature
-        self.max_context_rows = max_context_rows
+        # handle case where user passes config
+        if config:
+            # extract parameter dicts from config
+            llm_config = config.get("reporting", {}).get("llm", {})
+            paths_config = config.get("data", {}).get("paths", {})
+            defaults_config = config.get("defaults", {}).get("reporter", {})
 
-        # confirm output directory exists
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-
-        # confirm Ollama connection
-        self._verify_ollama_connection()
-
-    def _verify_ollama_connection(self):
-        """
-        Verify connection to local Ollama LLM server and model availability.
-        """
-
-        try:
-            # check server status and model list
-            models = ollama.list()
-
-            # safely extract Ollama model list
-            ## update to current API version that uses model key in dict structure
-            if "models" in models:
-                models = models["models"]
-            else:
-                models = []
-
-            # backwards compatibility to older APIs
-            available = []
-
-            for model in models:
-                # handle case where API returns dict object
-                if isinstance(model, dict):
-                    name = model.get("name") or model.get("model")
-                # handle all other data structures
-                else:
-                    name = getattr(model, "model", getattr(model, "name", str(model)))
-
-                if name:
-                    available.append(name)
-
-            # warn if specified model not found
-            if not any(self.model_name in m for m in available):
-                print(f"⚠ Warning: Model '{self.model_name}' not found in library.")
-                print(f"Available: {available}")
-                print(f"Attempting to run anyway (Ollama might auto-pull)...")
-
-        except Exception as e:
-            raise ConnectionError(
-                f"Cannot connect to Ollama. Is it running?\n"
-                f"Start with: ollama serve\n"
-                f"Error: {e}"
+            # set parameters as attributes
+            self.model_name = model_name or llm_config.get("model", "gemma3:4b")
+            self.base_url = base_url or llm_config.get(
+                "base_url", "http://localhost:11434"
             )
+            self.temperature = (
+                temperature
+                if temperature is not None
+                else llm_config.get("temperature", 0.2)
+            )
+            self.max_tokens = max_tokens or llm_config.get("max_tokens", 1000)
+            self.output_dir = output_dir or paths_config.get(
+                "reports_dir", "~/Projects/qusa/data/reports"
+            )
+            self.save_default = (
+                save_default
+                if save_default is not None
+                else defaults_config.get("save", True)
+            )
+
+            # confirm output directory path
+            self.output_dir = Path(self.output_dir).expanduser().resolve()
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        return
 
     @staticmethod
     def _prepare_metrics_summary(df):
@@ -751,27 +743,52 @@ class StrategyReporter:
         else:
             raise ValueError(f"Unsupported report type: {report_type}")
 
-    def _call_llm(self, prompt):
+    def _call_llm(self, prompt, system_prompt=None):
         """
         Pass prompt to Ollama-hosted LLM with error handling.
 
         Parameters:
-            1) prompt (str): pass to LLM
+            1) prompt (str): User prompt
+            2) system_prompt (str, optional): System context
+
+        Returns:
+            1) str: LLM response text
         """
 
-        try:
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
-                options={"temperature": self.temperature, "num_predict": 1000},
-            )
+        # define Ollama endpoint
+        url = f"{self.base_url}/api/generate"
 
-            return response["message"]["content"]
+        # define payload for LLM
+        payload = {
+            "model": self.model_name,
+            "prompt": prompt,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "stream": False,
+        }
+
+        # handle case where user passes system prompt
+        if system_prompt:
+            payload["system"] = system_prompt
+
+        try:
+            # send payload to Ollama endpoint and store response as JSON
+            response = requests.post(url, json=payload, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+
+            return result.get("response", "")
 
         except Exception as e:
-            error_msg = f"## LLM Generation Failed\n\n**Error:** {str(e)}\n\n"
-            error_msg += "**Fallback:** Using raw metrics summary.\n\n"
-            return error_msg
+            return f"[LLM Error: {str(e)}]"
+
+    def generate_backtest_report(
+        self, ticker, metrics, backtest_results=None, save=None, output_filename=None
+    ):
+        """
+        Fill here xxx
+        """
+        return
 
     def generate_report(
         self,
