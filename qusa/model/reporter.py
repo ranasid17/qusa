@@ -108,7 +108,7 @@ class ModelInterpreter:
         category_importance = {}
 
         for cat, ft in feature_categories.items():
-            cat_importance = importance[importance.index.isin(ft.index)].sum()
+            cat_importance = importance[importance.index.isin(ft)].sum()
             category_importance[cat] = float(cat_importance)
 
         top_features = {
@@ -145,7 +145,7 @@ class ModelInterpreter:
 
         # iterate across feature names and assign to categories
         for ft in features:
-            if any(x in ft for x in ["rsi", "atr", "volume", "proximity"]):
+            if any(x in ft for x in ["rsi", "volume", "proximity"]):
                 categories["technical_indicators"].append(ft)
             elif any(x in ft for x in ["day_", "month_", "is_"]):
                 categories["calendar"].append(ft)
@@ -251,7 +251,9 @@ class ModelInterpreter:
             )
 
         # check feature usage
-        unused_pct = feature_analysis.get("unused_pct", 0) / len(self.features) * 100
+        unused_count = feature_analysis.get("n_features_unused", 0)
+        unused_pct = unused_count / len(self.features) * 100
+
         if unused_pct > 50:
             limitations["warnings"].append(
                 f"{unused_pct:.0f}% of features unused - consider feature selection"
@@ -271,7 +273,7 @@ class ModelInterpreter:
             )
 
         # check sample size
-        min_leaf = self.model.get("hyperparameters", {}).get("min_samples_leaf", 1)
+        min_leaf = getattr(self.model, "min_samples_leaf", 1)
         if min_leaf < 10:
             limitations["warnings"].append(
                 f"Small min_samples_leaf ({min_leaf}) may cause overfitting"
@@ -535,7 +537,7 @@ class StrategyReporter:
         """
 
         self.model_name = llm_name
-        self.output_dir = Path(output_dir).expanduser()
+        self.output_dir = Path(str(output_dir)).expanduser()
         self.temperature = temperature
         self.max_context_rows = max_context_rows
 
@@ -553,13 +555,33 @@ class StrategyReporter:
         try:
             # check server status and model list
             models = ollama.list()
-            available = [m["name"] for m in models.get("models", [])]
+
+            # safely extract Ollama model list
+            ## update to current API version that uses model key in dict structure
+            if "models" in models:
+                models = models["models"]
+            else:
+                models = []
+
+            # backwards compatibility to older APIs
+            available = []
+
+            for model in models:
+                # handle case where API returns dict object
+                if isinstance(model, dict):
+                    name = model.get("name") or model.get("model")
+                # handle all other data structures
+                else:
+                    name = getattr(model, "model", getattr(model, "name", str(model)))
+
+                if name:
+                    available.append(name)
 
             # warn if specified model not found
             if not any(self.model_name in m for m in available):
-                print(f"⚠ Warning: Model '{self.model_name}' not found.")
-                print(f"Available models: {', '.join(available)}")
-                print(f"Pull it with: ollama pull {self.model_name}")
+                print(f"⚠ Warning: Model '{self.model_name}' not found in library.")
+                print(f"Available: {available}")
+                print(f"Attempting to run anyway (Ollama might auto-pull)...")
 
         except Exception as e:
             raise ConnectionError(
@@ -580,15 +602,34 @@ class StrategyReporter:
             1) summary (str): Formatted summary string.
         """
 
+        # Case 1: Data is a Dictionary (Summary Metrics)
+        if isinstance(df, dict):
+            summary_lines = ["**Performance Metrics Summary:**", "```json"]
+            # Convert dict to readable JSON string
+            summary_lines.append(json.dumps(df, indent=2, default=str))
+            summary_lines.append("```")
+            return "\n".join(summary_lines)
+
+        # Case 2: Data is a DataFrame (Trading Data)
         summary_lines = [
             f"**Total Observations:** {len(df)}",
-            f"**Date Range:** {df['date'].min()} to {df['date'].max()}",
-            "",
-            "**Statistical Summary:**",
-            "```",
-            df.describe().to_string(),
-            "```",
         ]
+
+        # Only check for 'date' if it actually exists in the DataFrame
+        if "date" in df.columns:
+            summary_lines.append(
+                f"**Date Range:** {df['date'].min()} to {df['date'].max()}"
+            )
+
+        summary_lines.extend(
+            [
+                "",
+                "**Statistical Summary:**",
+                "```",
+                df.describe().to_string(),
+                "```",
+            ]
+        )
 
         return "\n".join(summary_lines)
 
@@ -695,7 +736,7 @@ class StrategyReporter:
                 ),
                 feature_importance=feature_string,
                 decision_rules=json.dumps(
-                    model_interpretation.get("decision_rules", "N/A"), indent=2
+                    model_interpretation.get("decision_rules", "N/A")
                 ),
                 limitations=json.dumps(
                     model_interpretation.get("limitations", {}), indent=2
@@ -733,7 +774,14 @@ class StrategyReporter:
             return error_msg
 
     def generate_report(
-        self, report_type, metrics, df, ticker, model_path, data_path, save
+        self,
+        report_type,
+        metrics,
+        df,
+        ticker,
+        model_path=None,
+        data_path=None,
+        save=None,
     ):
         """
         Generate report using Ollama-hosted LLM.
@@ -865,7 +913,12 @@ def generate_backtest_report(metrics, results_df, ticker, **kwargs):
 
     """
     reporter = StrategyReporter(**kwargs)
-    report = reporter.generate_report("backtest", metrics, results_df, ticker)
+    report = reporter.generate_report(
+        "backtest",
+        metrics,
+        results_df,
+        ticker,
+    )
     return report
 
 
@@ -897,7 +950,7 @@ def generate_training_report(metrics, ticker, **kwargs):
         1) report (str): Markdown file of report
     """
     reporter = StrategyReporter(**kwargs)
-    report = reporter.generate_report("training", metrics, None, ticker)
+    report = reporter.generate_report("training", metrics, None, ticker, save=True)
     return report
 
 
@@ -917,6 +970,7 @@ def generate_model_interpretation_report(model_path, data_path, ticker, **kwargs
     report = reporter.generate_report(
         "model_interpretation",
         metrics={},
+        df=None,
         ticker=ticker,
         model_path=model_path,
         data_path=data_path,

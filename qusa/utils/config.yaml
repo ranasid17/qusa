@@ -1,6 +1,14 @@
 # QUSA/config.yaml
 
 # ------------------
+# Path resolution
+# ------------------
+paths:
+  models_dir: ~/Projects/QUSA/models
+  data_dir: ~/Projects/QUSA/data
+  reports_dir: ~/Projects/QUSA/reports
+
+# ------------------
 # Data settings
 # ------------------
 data:
@@ -41,6 +49,7 @@ analysis:
 model:
   output:
     model_output_path: "~/Projects/qusa/saved_models"
+
   parameters:
     max_depth: 5
     min_samples_leaf: 10
@@ -51,9 +60,43 @@ model:
     cv: 5
     probability_threshold: 0.7
 
-evaluation:
+# ------------------
+# Supported report types
+# ------------------
+enabled_reports:
+    - backtest
+    - evaluation
+    - training
+    - model_interpretation
+
+# -----------------
+# Model interpretation
+# -----------------
+model_interpretation:
+  feature_importance:
+    top_n: 20
+
+  decision_rules:
+    max_depth: 4
+
+  prediction_analysis:
+    enabled: true
+    confidence_thresholds:
+      high: 0.7
+      low: 0.3
+
+  limitations:
+    max_tree_depth_warning: 10
+    max_leaf_nodes_warning: 100
+    unused_feature_pct_warning: 50
+    dominant_feature_pct_warning: 0.5
+    min_samples_leaf_warning: 10
+
   save_results: true
 
+# ----------------
+# Model inference
+# ---------------
 prediction:
   save: true
   log_file: "~/Projects/qusa/data/predictions/prediction_log.csv"

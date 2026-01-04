@@ -79,8 +79,8 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, con
         llm = llm_config.get("model_name", "gemma3:4b")
         temp = llm_config.get("temp", 0.2)
         max_context_rows = llm_config.get("max_context_rows", 100)
-        base_output_dir = llm_config.get(
-            "output_dir", "~/Projects/qusa/reports"
+        base_output_dir = Path(
+            llm_config.get("output_dir", "~/Projects/qusa/reports")
         ).expanduser()
         subdir = llm_config.get("report_subdir", {}).get("backtest", "backtest")
 
@@ -93,7 +93,7 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, con
             llm_name=llm,
             output_dir=str(report_output_dir),
             temperature=temp,
-            max_content_rows=max_context_rows,
+            max_context_rows=max_context_rows,
         )
         logger.info("✓ AI report generated successfully")
 
