@@ -5,7 +5,7 @@
 Train overnight delta direction model.
 """
 
-import os
+import pandas as pd
 import sys
 
 from pathlib import Path
@@ -48,7 +48,6 @@ def main():
         tickers = config["data"]["tickers"]
 
         # paths
-        model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
         processed_data_dir = Path(
             config["data"]["paths"]["processed_data_dir"]
         ).expanduser()
@@ -72,29 +71,12 @@ def main():
             "probability_threshold": model_params.get("probability_threshold", 0.6),
         }
 
-        llm_config = config.get("llm", {})
-
-        enable_reports = llm_config.get("enable_reports", True)
-        llm = llm_config.get("model_name", "gemma3:4b")
-        temp = llm_config.get("temperature", 0.3)
-        max_context_rows = llm_config.get("max_context_rows", 10)
-        base_output_dir = Path(
-            llm_config.get("output_dir", "~/Projects/qusa/reports")
-        ).expanduser()
-        training_subdir = llm_config.get("report_subdir", {}).get(
-            "training", "training"
-        )
-
-        interpretation_subdir = llm_config.get("report_subdir", {}).get(
-            "interpretation", "interpretation"
-        )
-
-        training_report_dir = base_output_dir / training_subdir
-        interpretation_report_dir = base_output_dir / interpretation_subdir
+        reporting_config = config.get("reporting", {})
+        enable_reports = reporting_config.get("enabled", True)
 
         logger.info(f"Training Tickers: {tickers}")
         logger.info(f"Model Parameters: {model_config}")
-        logger.info(f"LLM Reports: {'Enabled' if enable_reports else 'Disabled'}")
+        logger.info(f"AI Reports: {'Enabled' if enable_reports else 'Disabled'}")
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
@@ -118,8 +100,7 @@ def main():
                 continue  # skip to next ticker
 
             # train model
-            ## Note: train_model function handles its own internal prints,
-            ##       but we wrap it to catch logic or data errors.
+            logger.info(f"Training model for {ticker}...")
             model = train_model(
                 data_path=str(data_path),
                 save_path=str(model_save_path),
@@ -137,38 +118,31 @@ def main():
                 try:
                     # attempt to generate training report
                     logger.info("Generating training report...")
-
                     training_report = generate_training_report(
-                        metrics=metrics,
                         ticker=ticker,
-                        llm_name=llm,
-                        output_dir=str(training_report_dir),
-                        temperature=temp,
-                        max_context_rows=max_context_rows,
+                        model_metrics=metrics,
+                        training_config=model_config,
+                        config=config,
                     )
-
                     logger.info("✓ Training report generated")
 
                 except Exception as e:
-                    logger.warning(f"⚠ Report generation failed: {e}")
+                    logger.warning(f"⚠ Training report generation failed: {e}")
+                    logger.debug("Full traceback:", exc_info=True)
 
                 try:
                     # attempt to generate interpretation report
                     logger.info("Generating model interpretation report...")
 
+                    # Load data for interpretation analysis
+                    data = pd.read_csv(data_path)
                     interpretation_report = generate_model_interpretation_report(
                         model_path=str(model_save_path),
-                        data_path=str(data_path),
-                        ticker=ticker,
-                        llm_name=llm,
-                        output_dir=str(interpretation_report_dir),
-                        temperature=temp,
-                        max_context_rows=max_context_rows,  #
+                        data=data,
+                        evaluation_metrics=metrics,
+                        config=config,
                     )
-
-                    logger.info(
-                        f"✓ Model interpretation report generated at {interpretation_report_dir}"
-                    )
+                    logger.info("✓ Model interpretation report generated")
 
                 except Exception as e:
                     logger.warning(f"⚠ Interpretation report failed: {e}")
