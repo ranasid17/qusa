@@ -175,7 +175,7 @@ def main():
 
             roi = metrics.get("strategy_return", 0.0)
             sharpe = metrics.get("sharpe_ratio", 0.0)
-            logger.info(f"Result: Return={roi:.2f}%, Sharpe={sharpe:.2f}")
+            logger.info(f"Result: Return={roi*100:.2f}%, Sharpe={sharpe:.2f}")
 
             # save artifacts if enabled
             if save_results:
