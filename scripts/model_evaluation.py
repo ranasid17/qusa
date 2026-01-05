@@ -12,7 +12,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-from qusa.model import evaluate_model
+from qusa.model import evaluate_model, generate_evaluation_report
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
@@ -46,7 +46,12 @@ def main():
         model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
         eval_data_dir = Path(config["data"]["paths"]["processed_data_dir"]).expanduser()
 
+        # Check if reporting is enabled
+        reporting_config = config.get("reporting", {})
+        enable_reports = reporting_config.get("enabled", True)
+
         logger.info(f"Starting evaluation for {len(tickers)} tickers: {tickers}")
+        logger.info(f"AI Reports: {'Enabled' if enable_reports else 'Disabled'}")
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
@@ -80,7 +85,21 @@ def main():
             )
             logger.info(f"Evaluation results: {metrics}")
 
-            success_count += 1
+            # generate AI report
+            if enable_reports:
+                try:
+                    logger.info("Generating AI-powered evaluation report...")
+
+                    report = generate_evaluation_report(
+                        ticker=ticker, metrics=metrics, config=config
+                    )
+                    logger.info("✓ Evaluation report generated")
+
+                except Exception as e:
+                    logger.warning(f"⚠ Report generation failed: {e}")
+                    logger.debug("Full traceback:", exc_info=True)
+
+                success_count += 1
 
         except Exception as e:
             logger.error(f"✗ Error evaluating {ticker}: {str(e)}", exc_info=True)

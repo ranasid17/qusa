@@ -208,6 +208,7 @@ __marimo__/
 
 
 # QUSA  --- IGNORE ---
+data/reports/*
 data/raw/*
 data/predictions/*
 data/processed/*

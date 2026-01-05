@@ -5,7 +5,7 @@
 Train overnight delta direction model.
 """
 
-import os
+import pandas as pd
 import sys
 
 from pathlib import Path
@@ -14,7 +14,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-from qusa.model import train_model
+from qusa.model import (
+    train_model,
+    generate_training_report,
+    generate_model_interpretation_report,
+)
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
@@ -44,7 +48,6 @@ def main():
         tickers = config["data"]["tickers"]
 
         # paths
-        model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
         processed_data_dir = Path(
             config["data"]["paths"]["processed_data_dir"]
         ).expanduser()
@@ -68,8 +71,12 @@ def main():
             "probability_threshold": model_params.get("probability_threshold", 0.6),
         }
 
+        reporting_config = config.get("reporting", {})
+        enable_reports = reporting_config.get("enabled", True)
+
         logger.info(f"Training Tickers: {tickers}")
         logger.info(f"Model Parameters: {model_config}")
+        logger.info(f"AI Reports: {'Enabled' if enable_reports else 'Disabled'}")
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
@@ -93,8 +100,7 @@ def main():
                 continue  # skip to next ticker
 
             # train model
-            ## Note: train_model function handles its own internal prints,
-            ##       but we wrap it to catch logic or data errors.
+            logger.info(f"Training model for {ticker}...")
             model = train_model(
                 data_path=str(data_path),
                 save_path=str(model_save_path),
@@ -107,10 +113,46 @@ def main():
             logger.info(f"Model training metrics for {ticker}: Accuracy = {acc:.4f}")
             logger.info(f"   Model saved to: {model_save_path}")
 
+            # generate AI reports
+            if enable_reports:
+                try:
+                    # attempt to generate training report
+                    logger.info("Generating training report...")
+                    training_report = generate_training_report(
+                        ticker=ticker,
+                        model_metrics=metrics,
+                        training_config=model_config,
+                        config=config,
+                    )
+                    logger.info("✓ Training report generated")
+
+                except Exception as e:
+                    logger.warning(f"⚠ Training report generation failed: {e}")
+                    logger.debug("Full traceback:", exc_info=True)
+
+                try:
+                    # attempt to generate interpretation report
+                    logger.info("Generating model interpretation report...")
+
+                    # Load data for interpretation analysis
+                    data = pd.read_csv(data_path)
+                    interpretation_report = generate_model_interpretation_report(
+                        model_path=str(model_save_path),
+                        data=data,
+                        evaluation_metrics=metrics,
+                        config=config,
+                    )
+                    logger.info("✓ Model interpretation report generated")
+
+                except Exception as e:
+                    logger.warning(f"⚠ Interpretation report failed: {e}")
+                    logger.debug("Full traceback:", exc_info=True)
+
             success_count += 1
 
         except Exception as e:
             logger.error(f"✗ Error training model for {ticker}: {e}")
+            logger.debug("Full traceback:", exc_info=True)
             continue  # proceed to next ticker
 
     # 4) summary

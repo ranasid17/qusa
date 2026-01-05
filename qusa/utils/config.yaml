@@ -15,6 +15,7 @@ data:
     processed_data_dir: '~/Projects/qusa/data/processed'
     figures_dir: '~/Projects/qusa/data/figures'
     predictions_dir: '~/Projects/qusa/data/predictions'
+    reports_dir: '~/Projects/qusa/data/reports'
 
 # ------------------
 # Feature engineering
@@ -34,42 +35,114 @@ analysis:
   strong_lift: 1.5
   moderate_lift: 1.2
 
-
 # ------------------
 # Model settings
 # ------------------
 model:
   output:
     model_output_path: "~/Projects/qusa/saved_models"
+
   parameters:
-    max_depth: 5
+    max_depth: 10
     min_samples_leaf: 10
     min_samples_split: 20
     class_weight: balanced
-    random_state: 42
+    random_state: 0
     test_size: 0.25
     cv: 5
     probability_threshold: 0.7
 
+# ------------------
+# Model evaluation
+# ------------------
 evaluation:
   save_results: true
 
+# ------------------
+# Model inference/prediction
+# ------------------
 prediction:
   save: true
   log_file: "~/Projects/qusa/data/predictions/prediction_log.csv"
-
 
 # ------------------
 # Backtesting settings
 # ------------------
 backtest:
-    initial_capital: 10000
-    position_size: 0.95
-    transaction_cost: 0.05      # % cost per trade (slippage + spread)
-    save_results: true
-    save_plots: true
+  initial_capital: 10000
+  position_size: 0.95
+  transaction_cost: 0.05      # % cost per trade (slippage + spread)
+  save_results: true
+  save_plots: true
 
+# ------------------
+# Reporting settings (LLM-based)
+# ------------------
+reporting:
+  enabled: true                           # Master switch to enable/disable AI reports
+
+  llm:
+    model: "gemma3:4b"                    # Ollama model to use
+    base_url: "http://localhost:11434"    # Ollama API endpoint
+    temperature: 0.3                      # Sampling temperature (0.0-1.0)
+    max_tokens: 1000                      # Maximum response tokens
+    max_context_rows: 10                  # Max rows of data to include in prompts
+
+  # Report types to enable
+  enabled_report_types:
+    - backtest
+    - evaluation
+    - training
+    - interpretation
+
+  # Subdirectories for different report types
+  report_subdirs:
+    backtest: "backtest"
+    evaluation: "evaluation"
+    training: "training"
+    interpretation: "interpretation"
+
+# ------------------
+# Model interpretation settings
+# ------------------
+interpretation:
+  # Feature importance analysis
+  top_n_features: 20                      # Number of top features to display
+  low_importance_threshold: 0.01          # Threshold for flagging low-importance features
+  high_correlation_threshold: 0.9         # Threshold for flagging correlated features
+
+  # Decision rule extraction
+  max_decision_depth: 13                  # Maximum depth for extracted decision rules
+
+  # Prediction analysis
+  prediction_analysis_enabled: true
+  low_confidence_threshold: 0.6           # Threshold for flagging low-confidence predictions
+
+  confidence_thresholds:
+    high: 0.7                             # Minimum probability for "high confidence"
+    low: 0.3                              # Maximum probability for "low confidence"
+
+  # Model limitation warnings
+  limitations:
+    max_tree_depth_warning: 10            # Warn if tree depth exceeds this
+    max_leaf_nodes_warning: 100           # Warn if leaf count exceeds this
+    unused_feature_pct_warning: 50        # Warn if % of features unused exceeds this
+    dominant_feature_pct_warning: 0.5     # Warn if single feature importance exceeds this
+    min_samples_leaf_warning: 10          # Warn if min_samples_leaf is below this
+
+  save_results: true                      # Save interpretation JSON results
+
+# ------------------
+# Default behaviors
+# ------------------
+defaults:
+  reporter:
+    save: true                            # Save reports by default
+
+# ------------------
+# Full modeling pipeline settings
+# ------------------
 pipeline:
-  skip_fe: false
-  skip_clustering: false
-  skip_backtest: false
+  skip_fe: false                          # Skip feature engineering
+  skip_clustering: false                  # Skip clustering analysis
+  skip_backtest: false                    # Skip backtesting

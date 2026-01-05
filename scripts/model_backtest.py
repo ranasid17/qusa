@@ -14,14 +14,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from qusa.model import ModelBacktester
+from qusa.model import ModelBacktester, generate_backtest_report
 from qusa.utils.config import load_config
 from qusa.utils.logger import setup_logger
 
 
-def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
+def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, config):
     """
-    Save backtest artifacts: metrics and plots.
+    Save backtest artifacts: metrics, plots, and AI report.
 
     Parameters:
         1) backtester (ModelBacktester): Backtester instance
@@ -29,11 +29,12 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
         3) output_dir (Path): Directory to save artifacts
         4) ticker (str): Stock ticker
         5) logger (logging.Logger): Logger instance
+        6) config (dict): Configuration dictionary
     """
 
     # create output directory if not exists
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_path = Path(output_dir).expanduser()
+    output_path = Path(output_dir).expanduser().resolve()
     output_path.mkdir(parents=True, exist_ok=True)
 
     # 1) save results CSV
@@ -57,11 +58,36 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger):
 
     # 3) save plots
     plot_path = output_path / f"backtest_plot_{ticker}_{timestamp}.png"
-    backtester = backtester.plot_results(save_path=str(plot_path))
+    backtester.plot_results(save_path=str(plot_path))
 
     ## Note: plot_results in the class prints confirmation,
     ##       but will re-log here for consistency in log file
     logger.info(f"✓ Backtest plot saved to {plot_path}")
+
+    # 4) generate AI report
+    reporting_config = config.get("reporting", {})
+    enable_reports = reporting_config.get("enabled", True)
+
+    if not enable_reports:
+        logger.info("AI report generation disabled in config")
+        return
+
+    try:
+        logger.info("Generating AI-powered backtest report...")
+
+        # Use config-driven report generation
+        report = generate_backtest_report(
+            ticker=ticker,
+            metrics=metrics,
+            backtest_results=backtester.results,
+            config=config,
+            output_filename=f"backtest_report_{ticker}_{timestamp}.txt",
+        )
+        logger.info("✓ AI report generated successfully")
+
+    except Exception as e:
+        logger.warning(f"⚠ Could not generate AI report: {e}")
+        logger.debug("Full traceback:", exc_info=True)
 
     return
 
@@ -102,6 +128,8 @@ def main():
         position_size = config["backtest"]["position_size"]
         transaction_cost = config["backtest"]["transaction_cost"]
         save_results = config["backtest"].get("save_results", True)
+
+        logger.info("✓ Backtest settings set up")
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
@@ -152,7 +180,7 @@ def main():
             # save artifacts if enabled
             if save_results:
                 save_backtest_artifacts(
-                    backtester, metrics, figures_dir, ticker, logger
+                    backtester, metrics, figures_dir, ticker, logger, config
                 )
 
             success_count += 1
@@ -163,7 +191,7 @@ def main():
 
     # 4) summarize results
     logger.info(f"{'=' * 40}")
-    logger.info(f"Successfully backtested {success_count}/{len(tickers)} tickers.")
+    logger.info(f"Successfully back tested {success_count}/{len(tickers)} tickers.")
 
 
 if __name__ == "__main__":
