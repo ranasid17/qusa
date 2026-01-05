@@ -91,9 +91,7 @@ def main():
                     logger.info("Generating AI-powered evaluation report...")
 
                     report = generate_evaluation_report(
-                        ticker=ticker,
-                        metrics=metrics,
-                        config=config,
+                        ticker=ticker, metrics=metrics, config=config
                     )
                     logger.info("✓ Evaluation report generated")
 
