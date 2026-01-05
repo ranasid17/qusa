@@ -6,7 +6,7 @@ Machine learning model for overnight price prediction
 
 from .backtest import ModelBacktester
 from .evaluate import evaluate_model
-from .reporter import (
+from .reports import (
     generate_backtest_report,
     generate_evaluation_report,
     generate_model_interpretation_report,
