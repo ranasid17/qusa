@@ -34,7 +34,7 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, con
 
     # create output directory if not exists
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_path = Path(output_dir).expanduser()
+    output_path = Path(output_dir).expanduser().resolve()
     output_path.mkdir(parents=True, exist_ok=True)
 
     # 1) save results CSV
@@ -65,8 +65,8 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, con
     logger.info(f"✓ Backtest plot saved to {plot_path}")
 
     # 4) generate AI report
-    llm_config = config.get("llm", {})
-    enable_reports = llm_config.get("enable_reports", True)
+    reporting_config = config.get("reporting", {})
+    enable_reports = reporting_config.get("enabled", True)
 
     if not enable_reports:
         logger.info("AI report generation disabled in config")
@@ -75,25 +75,13 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, con
     try:
         logger.info("Generating AI-powered backtest report...")
 
-        # extract LLM settings from config
-        llm = llm_config.get("model_name", "gemma3:4b")
-        temp = llm_config.get("temp", 0.2)
-        max_context_rows = llm_config.get("max_context_rows", 100)
-        base_output_dir = Path(
-            llm_config.get("output_dir", "~/Projects/qusa/reports")
-        ).expanduser()
-        subdir = llm_config.get("report_subdir", {}).get("backtest", "backtest")
-
-        report_output_dir = base_output_dir / subdir
-
+        # Use config-driven report generation
         report = generate_backtest_report(
-            metrics=metrics,
-            results_df=backtester.results,
             ticker=ticker,
-            llm_name=llm,
-            output_dir=str(report_output_dir),
-            temperature=temp,
-            max_context_rows=max_context_rows,
+            metrics=metrics,
+            backtest_results=backtester.results,
+            config=config,
+            output_filename=f"backtest_report_{ticker}_{timestamp}.txt",
         )
         logger.info("✓ AI report generated successfully")
 
@@ -140,6 +128,8 @@ def main():
         position_size = config["backtest"]["position_size"]
         transaction_cost = config["backtest"]["transaction_cost"]
         save_results = config["backtest"].get("save_results", True)
+
+        logger.info("✓ Backtest settings set up")
 
     except KeyError as e:
         logger.error(f"✗ Missing configuration key: {e}")
