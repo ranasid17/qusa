@@ -238,7 +238,7 @@ class ModelBacktester:
             self.results["portfolio_value"],
             label="Strategy",
             color="#0f4c5c",
-            linestyle="-",
+            linestyle="--",
         )
         ax[0].plot(
             self.results["date"],
@@ -249,7 +249,6 @@ class ModelBacktester:
         ax[0].set_title("Portfolio Value", fontsize=14)
         ax[0].set_ylabel("Value ($)", fontsize=12)
         ax[0].legend()
-        ax[0].grid(True, alpha=0.3)
 
         # plot 2: draw down
         cumulative = self.results["portfolio_value"]
@@ -266,7 +265,6 @@ class ModelBacktester:
         )
         ax[1].set_title("Draw Down", fontsize=14)
         ax[1].set_ylabel("Draw Down (%)", fontsize=12)
-        ax[1].grid(True, alpha=0.3)
 
         # plot 3: trade distribution
         trades = self.results[self.results["trade_executed"] == 1]
@@ -279,14 +277,12 @@ class ModelBacktester:
                 trades["date"],
                 trades["trade_pnl"],
                 color=colors,
-                width=1.0,  # Thin bars for daily trades
             )
 
         ax[2].axhline(0, color="black", linestyle="-", linewidth=0.8)
         ax[2].set_title("Daily Trade Returns (PnL %)", fontsize=14)
         ax[2].set_xlabel("Date", fontsize=12)
         ax[2].set_ylabel("Trade Return (%)", fontsize=12)
-        ax[2].grid(True, alpha=0.3)
 
         plt.tight_layout()
 
