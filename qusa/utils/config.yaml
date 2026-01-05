@@ -43,11 +43,11 @@ model:
     model_output_path: "~/Projects/qusa/saved_models"
 
   parameters:
-    max_depth: 5
+    max_depth: 10
     min_samples_leaf: 10
     min_samples_split: 20
     class_weight: balanced
-    random_state: 42
+    random_state: 0
     test_size: 0.25
     cv: 5
     probability_threshold: 0.7
@@ -112,7 +112,7 @@ interpretation:
   high_correlation_threshold: 0.9         # Threshold for flagging correlated features
 
   # Decision rule extraction
-  max_decision_depth: 4                   # Maximum depth for extracted decision rules
+  max_decision_depth: 13                  # Maximum depth for extracted decision rules
 
   # Prediction analysis
   prediction_analysis_enabled: true
