@@ -73,3 +73,13 @@ pipeline:
   skip_fe: false
   skip_clustering: false
   skip_backtest: false
+
+
+# ------------------
+# Monte Carlo settings
+# ------------------
+monte_carlo:
+  enabled: true
+  iterations: 1000
+  horizons: [1, 3, 7, 15, 30, 45]  # days to simulate
+  start_date: "2020-01-01"  # or use dynamic date calculation
