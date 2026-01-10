@@ -140,9 +140,6 @@ def main():
 
         data = pd.read_csv(data_path)
         logger.info("✓ Data loaded successfully")
-        logger.info(f"  Shape: {data.shape}")
-        logger.info(f"  Columns: {list(data.columns)}")
-        logger.info(f"  Date range: {data['date'].min()} to {data['date'].max()}")
 
     except Exception as e:  # unable to load data
         logger.error(f"✗ Error loading data: {e}")
@@ -181,10 +178,11 @@ def main():
                     "abnormal_threshold": config["analysis"]["abnormal_threshold"]
                 },
                 "technical_params": config["features"],
+                "monte_carlo": config.get("monte_carlo", {}),
             }
         )
 
-        processed_data = fe_pipeline.run(data)
+        processed_data = fe_pipeline.run(data, ticker=ticker)
 
         logger.info("Feature Engineering Pipeline completed successfully.")
         logger.info(f"  Output shape: {processed_data.shape}")
@@ -197,7 +195,6 @@ def main():
 
     try:  # save processed data
         logger.info("Saving processed data...")
-
         # extract output path from config
         processed_dir = os.path.expanduser(
             config["data"]["paths"]["processed_data_dir"]
@@ -223,7 +220,7 @@ def main():
     logger.info(f"Input file: {data_path}")
     logger.info(f"Output file: {output_path}")
     logger.info(f"Rows processed: {len(processed_data)}")
-    logger.info(f"Features created: {len(fe_pipeline.get_engineered_features())}")
+    logger.info(f"Features created: {len(fe_pipeline.get_engineered_features(include_monte_carlo=config.get('monte_carlo', {}).get('enabled', False), mc_horizons=config.get('monte_carlo', {}).get('horizons', None)))}")
     logger.info("=" * 80)
     logger.info("✓ Pipeline completed successfully!")
     logger.info("=" * 80)
