@@ -3,6 +3,7 @@
 from qusa.features.overnight import OvernightCalculator
 from qusa.features.calendar import CalendarFeatures
 from qusa.features.technical import TechnicalIndicators
+from qusa.model.monte_carlo_stock_model import MonteCarloStockModel 
 
 
 class FeaturePipeline:
@@ -37,6 +38,9 @@ class FeaturePipeline:
             low_col=self.config.get("low_col", "low"),
             volume_col=self.config.get("volume_col", "volume"),
         )
+
+        # Initialize Monte Carlo model
+        self.monte_carlo = MonteCarloStockModel()
 
     def run(self, df):
         """

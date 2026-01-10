@@ -9,10 +9,10 @@ from datetime import date
 
 # %%
 # Import data
-def inputs(ticket, start_date):
+def inputs(ticker, start_date):
 
     today = date.today()
-    data_df = yf.download(ticket, start = start_date, end = today)
+    data_df = yf.download(ticker, start = start_date, end = today)
 
     return data_df
 
