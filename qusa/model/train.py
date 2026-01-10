@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.tree import DecisionTreeClassifier
 
 # Add Monte Carlo features to SAFE_FEATURES
-from qusa.features.monte_carlo import MonteCarloFeatures
+# from qusa.features.monte_carlo import MonteCarloFeatures
 
 
 # define allowed features for training
@@ -50,11 +50,24 @@ SAFE_FEATURES = [
 ]
 
 
-# Get MC feature names
-MC_FEATURES = MonteCarloFeatures.get_feature_names(horizons=[1, 3, 7, 15, 30, 45])
+# Add this function (lazy import to avoid circular imports)
+def get_safe_features(include_monte_carlo=True, mc_horizons=None):
+    """
+    Return SAFE_FEATURES plus Monte Carlo feature names (imported lazily).
+    """
+    features = SAFE_FEATURES.copy()
+    if include_monte_carlo:
+        try:
+            mc_horizons = mc_horizons or [1, 3, 7, 15, 30, 45]
+            from qusa.features.monte_carlo import MonteCarloFeatures
 
-# Append to SAFE_FEATURES
-SAFE_FEATURES.extend(MC_FEATURES)
+            features.extend(MonteCarloFeatures.get_feature_names(horizons=mc_horizons))
+        except Exception:
+            # If import fails, return base features only
+            pass
+
+    # remove duplicates while preserving order
+    return list(dict.fromkeys(features))
 
 # confirm no duplicate features
 SAFE_FEATURES = list(dict.fromkeys(SAFE_FEATURES))
@@ -91,6 +104,18 @@ class OvernightDirectionModel:
         self.trained_date = None
         self.metrics = {}
 
+        # determine whether to include Monte Carlo features from config (safe default False)
+        include_mc = False
+        mc_horizons = None
+        if isinstance(config, dict):
+            mc_conf = config.get("monte_carlo", {})
+            include_mc = mc_conf.get("enabled", False)
+            mc_horizons = mc_conf.get("horizons", None)
+
+        # set feature names at runtime using lazy importer
+        self.feature_names = get_safe_features(include_monte_carlo=include_mc, mc_horizons=mc_horizons)
+
+        
     @staticmethod
     def load_data(data_path):
         """
