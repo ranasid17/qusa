@@ -241,3 +241,73 @@ def simulate_mc(ticker, start_date, days, iterations, plot=True):
 #     print("-" * 30)
 # # %%
 
+def get_mc_features(ticker, start_date, days, iterations):
+    """
+    Run Monte Carlo simulation and return features as a dictionary.
+    
+    Parameters:
+        ticker (str): Stock ticker symbol
+        start_date (str): Start date for historical data
+        days (int): Number of days to simulate
+        iterations (int): Number of Monte Carlo iterations
+    
+    Returns:
+        dict: Dictionary of Monte Carlo features
+    """
+    data_df = inputs(ticker, start_date)
+    final_data_df = preprocessing_data(data_df)
+    returns = daily_returns(final_data_df, days, iterations)
+    
+    # Create price simulations
+    price_list = np.zeros_like(returns)
+    price_list[0] = final_data_df.iloc[-1]
+    
+    for t in range(1, days):
+        price_list[t] = price_list[t-1] * returns[t]
+    
+    # Calculate metrics
+    price_df = pd.DataFrame(price_list)
+    current_price = price_list[0, 0]
+    expected_value = price_df.iloc[-1].mean()
+    return_pct = 100 * (expected_value - current_price) / expected_value
+    prob_breakeven = probs_find(price_df, 0, on='return')
+    
+    # Return as dictionary with horizon-specific names
+    features = {
+        f'mc_{days}d_expected_value': expected_value,
+        f'mc_{days}d_return_pct': return_pct,
+        f'mc_{days}d_prob_breakeven': prob_breakeven,
+        f'mc_{days}d_current_price': current_price,
+        f'mc_{days}d_q0_5': np.percentile(price_list, 0.5),
+        f'mc_{days}d_q1': np.percentile(price_list, 1),
+        f'mc_{days}d_q5': np.percentile(price_list, 5),
+        f'mc_{days}d_q10': np.percentile(price_list, 10),
+        f'mc_{days}d_q25': np.percentile(price_list, 25),
+        f'mc_{days}d_q50': np.percentile(price_list, 50),
+        f'mc_{days}d_q75': np.percentile(price_list, 75),
+        f'mc_{days}d_q95': np.percentile(price_list, 95),
+    }
+    
+    return features
+
+
+def get_mc_features_multiple_horizons(ticker, start_date, horizons=[1, 3, 7, 15, 30, 45], iterations=1000):
+    """
+    Generate Monte Carlo features for multiple horizons.
+    
+    Parameters:
+        ticker (str): Stock ticker symbol
+        start_date (str): Start date for historical data
+        horizons (list): List of forecast horizons in days
+        iterations (int): Number of Monte Carlo iterations
+    
+    Returns:
+        dict: Flat dictionary with all MC features across all horizons
+    """
+    all_features = {}
+    
+    for days in horizons:
+        features = get_mc_features(ticker, start_date, days, iterations)
+        all_features.update(features)
+    
+    return all_features
