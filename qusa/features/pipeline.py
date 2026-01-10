@@ -3,7 +3,8 @@
 from qusa.features.overnight import OvernightCalculator
 from qusa.features.calendar import CalendarFeatures
 from qusa.features.technical import TechnicalIndicators
-from qusa.model.monte_carlo_stock_model import MonteCarloStockModel 
+# from qusa.model.monte_carlo_stock_model import MonteCarloStockModel 
+from qusa.features.monte_carlo import MonteCarloFeatures 
 
 
 class FeaturePipeline:
@@ -39,10 +40,12 @@ class FeaturePipeline:
             volume_col=self.config.get("volume_col", "volume"),
         )
 
-        # Initialize Monte Carlo model
-        self.monte_carlo = MonteCarloStockModel()
+        # Initialize Monte Carlo features
+        mc_config = self.config.get("monte_carlo", {})
+        self.monte_carlo = MonteCarloFeatures(config=mc_config) if mc_config.get("enabled", False) else None
 
-    def run(self, df):
+
+    def run(self, df, ticker=None):
         """
         Run the feature pipeline on the provided DataFrame.
 
@@ -68,10 +71,14 @@ class FeaturePipeline:
         # Step 3) Calculate calendar features
         df_mod = self.calendar_features.add_all(df_mod)
 
+        # Step 4) Calculate Monte Carlo features (if enabled and ticker provided)
+        if self.monte_carlo is not None and ticker is not None:
+            df_mod = self.monte_carlo.add_all(df_mod, ticker)
+
         return df_mod
 
     @staticmethod
-    def get_engineered_features():
+    def get_engineered_features(include_monte_carlo=True, mc_horizons=None):
         """
         Get the list of all engineered feature names.
 
@@ -108,5 +115,9 @@ class FeaturePipeline:
                 "is_month_end",
             ]
         )
+
+        # Monte Carlo features
+        if include_monte_carlo:
+            features.extend(MonteCarloFeatures.get_feature_names(horizons=mc_horizons))
 
         return features
