@@ -176,67 +176,68 @@ def simulate_mc(ticker, start_date, days, iterations, plot=True):
     return pd.DataFrame(price_list)
 
 
-# %% 
+# # %% 
 
 
-simulate_mc("AMZN", "2016-10-31", 1, 1000)
-simulate_mc("AMZN", "2016-10-31", 3, 1000)
-simulate_mc("AMZN", "2016-10-31", 7, 1000)
-simulate_mc("AMZN", "2016-10-31", 14, 1000)
-simulate_mc("AMZN", "2016-10-31", 30, 1000)
-simulate_mc("AMZN", "2016-10-31", 35, 1000)
-simulate_mc("AMZN", "2016-10-31", 40, 1000)
-simulate_mc("AMZN", "2016-10-31", 45, 1000)
+# simulate_mc("AMZN", "2016-10-31", 1, 1000)
+# simulate_mc("AMZN", "2016-10-31", 3, 1000)
+# simulate_mc("AMZN", "2016-10-31", 7, 1000)
+# simulate_mc("AMZN", "2016-10-31", 14, 1000)
+# simulate_mc("AMZN", "2016-10-31", 30, 1000)
+# simulate_mc("AMZN", "2016-10-31", 35, 1000)
+# simulate_mc("AMZN", "2016-10-31", 40, 1000)
+# simulate_mc("AMZN", "2016-10-31", 45, 1000)
 
 
-# %%
-def backtest_once(price_series, horizon, iterations):
-    """
-    Use data up to the second-last-horizon to simulate the horizon and compare to actual.
-    Returns a dictionary with mean_pred, rmse, and coverage_5_95.
-    """
-    split = -horizon
-    train = price_series.iloc[:split]  # Use .iloc for positional slicing
-    actual = price_series.iloc[split + horizon - 1]  # Use .iloc for positional indexing
-    actual = actual.item()  # Convert to scalar value
-    sim = daily_returns(train, horizon, iterations)  # Simulated daily returns
+# # %%
+# def backtest_once(price_series, horizon, iterations):
+#     """
+#     Use data up to the second-last-horizon to simulate the horizon and compare to actual.
+#     Returns a dictionary with mean_pred, rmse, and coverage_5_95.
+#     """
+#     split = -horizon
+#     train = price_series.iloc[:split]  # Use .iloc for positional slicing
+#     actual = price_series.iloc[split + horizon - 1]  # Use .iloc for positional indexing
+#     actual = actual.item()  # Convert to scalar value
+#     sim = daily_returns(train, horizon, iterations)  # Simulated daily returns
     
-    # Build end prices from simulations
-    last_price = train.iloc[-1]
-    if isinstance(last_price, pd.Series):  # Ensure it's a scalar
-        last_price = last_price.values[0]
-    end_prices = last_price * np.prod(sim, axis=0)  # 1D array of final prices for each simulation
+#     # Build end prices from simulations
+#     last_price = train.iloc[-1]
+#     if isinstance(last_price, pd.Series):  # Ensure it's a scalar
+#         last_price = last_price.values[0]
+#     end_prices = last_price * np.prod(sim, axis=0)  # 1D array of final prices for each simulation
     
-    # Calculate metrics
-    mean_pred = end_prices.mean()
-    rmse = np.sqrt(np.mean((end_prices - actual) ** 2))
-    mape = np.mean(np.abs((end_prices - actual) / actual)) * 100
-    lower, upper = np.percentile(end_prices, 5), np.percentile(end_prices, 95)
-    coverage = 1.0 if (actual >= lower and actual <= upper) else 0.0
+#     # Calculate metrics
+#     mean_pred = end_prices.mean()
+#     rmse = np.sqrt(np.mean((end_prices - actual) ** 2))
+#     mape = np.mean(np.abs((end_prices - actual) / actual)) * 100
+#     lower, upper = np.percentile(end_prices, 5), np.percentile(end_prices, 95)
+#     coverage = 1.0 if (actual >= lower and actual <= upper) else 0.0
 
-    return {"mean_pred": mean_pred, "rmse": rmse, "mape": mape, "coverage_5_95": coverage}
+#     return {"mean_pred": mean_pred, "rmse": rmse, "mape": mape, "coverage_5_95": coverage}
 
-# Example backtest for different horizons
-ticker = "AMZN"
-start_date = "2016-10-31"
-data_df = inputs(ticker, start_date)
-final_data_df = preprocessing_data(data_df)
+# # Example backtest for different horizons
+# ticker = "AMZN"
+# start_date = "2016-10-31"
+# data_df = inputs(ticker, start_date)
+# final_data_df = preprocessing_data(data_df)
 
-horizons = [1, 3, 7, 14, 30]
-iterations = 1000
-results = []
+# horizons = [1, 3, 7, 14, 30]
+# iterations = 1000
+# results = []
 
-for horizon in horizons:
-    result = backtest_once(final_data_df, horizon, iterations)
-    result["horizon"] = horizon
-    results.append(result)
+# for horizon in horizons:
+#     result = backtest_once(final_data_df, horizon, iterations)
+#     result["horizon"] = horizon
+#     results.append(result)
 
-# Print results
-for res in results:
-    print(f"Horizon: {res['horizon']} days")
-    print(f"Mean Predicted Price: {res['mean_pred']}")
-    print(f"RMSE: {res['rmse']}")
-    print(f"MAPE: {res['mape']:.2f}%")
-    print(f"Coverage (5%-95%): {res['coverage_5_95']}")
-    print("-" * 30)
-# %%
+# # Print results
+# for res in results:
+#     print(f"Horizon: {res['horizon']} days")
+#     print(f"Mean Predicted Price: {res['mean_pred']}")
+#     print(f"RMSE: {res['rmse']}")
+#     print(f"MAPE: {res['mape']:.2f}%")
+#     print(f"Coverage (5%-95%): {res['coverage_5_95']}")
+#     print("-" * 30)
+# # %%
+
