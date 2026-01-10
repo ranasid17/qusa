@@ -13,6 +13,9 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.tree import DecisionTreeClassifier
 
+# Add Monte Carlo features to SAFE_FEATURES
+from qusa.features.monte_carlo import MonteCarloFeatures
+
 
 # define allowed features for training
 SAFE_FEATURES = [
@@ -45,6 +48,13 @@ SAFE_FEATURES = [
     "is_nov",
     "is_dec",
 ]
+
+
+# Get MC feature names
+MC_FEATURES = MonteCarloFeatures.get_feature_names(horizons=[1, 3, 7, 15, 30, 45])
+
+# Append to SAFE_FEATURES
+SAFE_FEATURES.extend(MC_FEATURES)
 
 # confirm no duplicate features
 SAFE_FEATURES = list(dict.fromkeys(SAFE_FEATURES))
