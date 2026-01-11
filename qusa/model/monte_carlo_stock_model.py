@@ -1,33 +1,15 @@
 # Imports
 import numpy as np 
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.stats import norm 
-import yfinance as yf
-from datetime import date
+from scipy.stats import norm
 
-# %%
-# Import data
-def inputs(ticker, start_date):
-
-    today = date.today()
-    data_df = yf.download(ticker, start = start_date, end = today)
-
-    return data_df
-
-# %% 
-# Data processing
-def preprocessing_data(data_df):
-    """
-    This function performs basic preprocessing of the input data. 
-    
-    """
-
-    final_data_df = data_df.reset_index()
-    final_data_df = final_data_df['Close']
-
-    return final_data_df
+# Optional imports for visualization (not required for feature generation)
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    PLOTTING_AVAILABLE = True
+except ImportError:
+    PLOTTING_AVAILABLE = False
 
 # %%
 # Calculate log returns
@@ -93,7 +75,13 @@ def probs_find(predicted, higherthan, on = 'value'):
         less = [i for i in predList if i < higherthan]
     else:
         print( "'on' must be either value or return")
-    return (len(over)/(len(over)+len(less)))
+        return 0.0
+    
+    total = len(over) + len(less)
+    if total == 0:
+        return 0.0
+    
+    return (len(over)/total)
 
 
 # %%
@@ -241,26 +229,24 @@ def simulate_mc(ticker, start_date, days, iterations, plot=True):
 #     print("-" * 30)
 # # %%
 
-def get_mc_features(ticker, start_date, days, iterations):
+def get_mc_features(close_prices, days, iterations):
     """
     Run Monte Carlo simulation and return features as a dictionary.
     
     Parameters:
-        ticker (str): Stock ticker symbol
-        start_date (str): Start date for historical data
+        close_prices (pd.Series): Historical close price series
         days (int): Number of days to simulate
         iterations (int): Number of Monte Carlo iterations
     
     Returns:
         dict: Dictionary of Monte Carlo features
     """
-    data_df = inputs(ticker, start_date)
-    final_data_df = preprocessing_data(data_df)
-    returns = daily_returns(final_data_df, days, iterations)
+    returns = daily_returns(close_prices, days, iterations)
     
     # Create price simulations
     price_list = np.zeros_like(returns)
-    price_list[0] = final_data_df.iloc[-1]
+    current_price = close_prices.iloc[-1] if isinstance(close_prices, pd.Series) else close_prices[-1]
+    price_list[0] = current_price
     
     for t in range(1, days):
         price_list[t] = price_list[t-1] * returns[t]
@@ -291,13 +277,12 @@ def get_mc_features(ticker, start_date, days, iterations):
     return features
 
 
-def get_mc_features_multiple_horizons(ticker, start_date, horizons=[1, 3, 7, 15, 30, 45], iterations=1000):
+def get_mc_features_multiple_horizons(close_prices, horizons=[1, 3, 7, 15, 30, 45], iterations=1000):
     """
     Generate Monte Carlo features for multiple horizons.
     
     Parameters:
-        ticker (str): Stock ticker symbol
-        start_date (str): Start date for historical data
+        close_prices (pd.Series): Historical close price series
         horizons (list): List of forecast horizons in days
         iterations (int): Number of Monte Carlo iterations
     
@@ -307,7 +292,7 @@ def get_mc_features_multiple_horizons(ticker, start_date, horizons=[1, 3, 7, 15,
     all_features = {}
     
     for days in horizons:
-        features = get_mc_features(ticker, start_date, days, iterations)
+        features = get_mc_features(close_prices, days, iterations)
         all_features.update(features)
     
     return all_features

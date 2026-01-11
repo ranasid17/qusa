@@ -51,7 +51,7 @@ def main():
 
     # 1) set up configuration and logging
     try:
-        config_path = PROJECT_ROOT / "config.yaml"
+        config_path = PROJECT_ROOT / "qusa" / "utils" / "config.yaml"
         config = load_config(str(config_path))
 
         log_file = config.get("prediction", {}).get("log_file", "logs/predictions.log")
@@ -69,7 +69,7 @@ def main():
 
         # store key paths
         model_dir = Path(config["model"]["output"]["model_output_path"]).expanduser()
-        data_dir = Path(config["model"]["output"]["processed_data_dir"]).expanduser()
+        data_dir = Path(config["data"]["paths"]["processed_data_dir"]).expanduser()
 
         # store prediction settings
         should_save = config.get("prediction", {}).get("save", True)

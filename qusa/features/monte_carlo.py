@@ -19,23 +19,29 @@ class MonteCarloFeatures:
         self.iterations = self.config.get("iterations", 1000)
         self.start_date = self.config.get("start_date", "2020-01-01")
     
-    def add_all(self, df, ticker):
+    def add_all(self, df, ticker=None, close_col='close'):
         """
         Add all Monte Carlo features to the DataFrame.
         
         Parameters:
-            df (pd.DataFrame): Stock data DataFrame
-            ticker (str): Stock ticker symbol
+            df (pd.DataFrame): Stock data DataFrame with close prices
+            ticker (str): Stock ticker symbol (optional, not used)
+            close_col (str): Name of the close price column
         
         Returns:
             pd.DataFrame: DataFrame with MC features added
         """
         df_mod = df.copy()
         
+        # Extract close prices from DataFrame
+        if close_col not in df.columns:
+            raise ValueError(f"Column '{close_col}' not found in DataFrame. Available columns: {df.columns.tolist()}")
+        
+        close_prices = df[close_col]
+        
         # Get all MC features for all horizons
         mc_features = get_mc_features_multiple_horizons(
-            ticker=ticker,
-            start_date=self.start_date,
+            close_prices=close_prices,
             horizons=self.horizons,
             iterations=self.iterations
         )
