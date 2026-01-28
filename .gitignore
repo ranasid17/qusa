@@ -208,10 +208,11 @@ __marimo__/
 
 
 # QUSA  --- IGNORE ---
-data/raw/*
+data/figures/*
 data/predictions/*
 data/processed/*
-data/figures/*
+data/raw/*
+data/reports/*
 
 saved_models/*
 *.DS_Store
