@@ -214,6 +214,8 @@ data/processed/*
 data/raw/*
 data/reports/*
 
+logs/experiments.csv
+
 saved_models/*
 *.DS_Store
 *.idea
