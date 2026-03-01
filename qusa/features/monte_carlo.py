@@ -1,79 +1,279 @@
+# qusa/features/monte_carlo.py
+
+"""
+Monte Carlo feature generation for stock price forecasting.
+Uses geometric Brownian motion to simulate future price paths.
+"""
+
+import numpy as np
 import pandas as pd
-from ..model.monte_carlo_stock_model import get_mc_features_multiple_horizons
+from datetime import datetime
 
 
 class MonteCarloFeatures:
     """
-    Generate Monte Carlo simulation features for stock price forecasting.
+    Calculate Monte Carlo simulation features for financial time series data.
     """
-    
+
     def __init__(self, config=None):
         """
-        Initialize Monte Carlo feature generator.
-        
+        Class constructor.
+
         Parameters:
             config (dict): Configuration dictionary with MC settings
         """
         self.config = config or {}
-        self.horizons = self.config.get("horizons", [1, 3, 7, 15, 30, 45])
+
+        # Extract parameters from config with defaults
+        self.window_size = self.config.get("window_size", 252)
         self.iterations = self.config.get("iterations", 1000)
-        self.start_date = self.config.get("start_date", "2020-01-01")
-    
-    def add_all(self, df, ticker):
+        self.random_seed = self.config.get("random_seed", 42)
+        self.min_data_threshold = self.config.get("min_data_threshold", 252)
+        self.features = self.config.get(
+            "features",
+            [
+                "mc_1d_q1",
+                "mc_1d_q5",
+                "mc_1d_q10",
+                "mc_1d_q50",
+                "mc_1d_q95",
+                "mc_1d_return_pct",
+                "mc_1d_prob_breakeven",
+            ],
+        )
+
+    def calculate_log_returns(self, prices):
         """
-        Add all Monte Carlo features to the DataFrame.
-        
+        Calculate log returns from price series.
+
         Parameters:
-            df (pd.DataFrame): Stock data DataFrame
-            ticker (str): Stock ticker symbol
-        
+            prices (pd.Series): Price series
+
+        Returns:
+            pd.Series: Log returns
+        """
+        return np.log(prices / prices.shift(1))
+
+    def calculate_drift(self, log_returns):
+        """
+        Calculate drift (expected return) from log returns.
+
+        Parameters:
+            log_returns (pd.Series): Log returns series
+
+        Returns:
+            float: Drift value
+        """
+        mean_return = log_returns.mean()
+        variance = log_returns.var()
+        drift = mean_return - (0.5 * variance)
+
+        return drift
+
+    def simulate_price_paths(self, current_price, drift, volatility, days=1):
+        """
+        Simulate future price paths using geometric Brownian motion.
+
+        Parameters:
+            current_price (float): Starting price
+            drift (float): Expected return (drift)
+            volatility (float): Historical volatility (std dev of log returns)
+            days (int): Number of days to simulate
+
+        Returns:
+            np.ndarray: Array of simulated end prices (shape: iterations,)
+        """
+        # Set random seed for reproducibility
+        np.random.seed(self.random_seed)
+
+        # Daily timestep
+        dt = 1 / 252
+
+        # Generate random shocks
+        shocks = np.random.normal(size=(days, self.iterations))
+
+        # Calculate daily returns
+        daily_returns = np.exp(drift * dt + volatility * np.sqrt(dt) * shocks)
+
+        # Calculate end prices (product of all daily returns)
+        cumulative_returns = np.prod(daily_returns, axis=0)
+        end_prices = current_price * cumulative_returns
+
+        return end_prices
+
+    def calculate_mc_features_for_window(self, price_window):
+        """
+        Calculate MC features for a single rolling window.
+
+        Parameters:
+            price_window (pd.Series): Rolling window of historical prices
+
+        Returns:
+            dict: Dictionary of MC feature values
+        """
+        try:
+            # Validate window size
+            if len(price_window) < self.window_size:
+                return None
+
+            # Get current price (last price in window)
+            current_price = price_window.iloc[-1]
+
+            # Calculate log returns
+            log_returns = self.calculate_log_returns(price_window).dropna()
+
+            # Check for sufficient data
+            if len(log_returns) < 2:
+                return None
+
+            # Calculate drift and volatility
+            drift = self.calculate_drift(log_returns)
+            volatility = log_returns.std()
+
+            # Handle zero volatility edge case
+            if volatility == 0 or np.isnan(volatility):
+                return None
+
+            # Simulate price paths (1 day ahead)
+            simulated_prices = self.simulate_price_paths(
+                current_price=current_price, drift=drift, volatility=volatility, days=1
+            )
+
+            # Calculate feature statistics
+            features = {}
+
+            # Quantiles
+            features["mc_1d_q1"] = np.percentile(simulated_prices, 1)
+            features["mc_1d_q5"] = np.percentile(simulated_prices, 5)
+            features["mc_1d_q10"] = np.percentile(simulated_prices, 10)
+            features["mc_1d_q50"] = np.percentile(simulated_prices, 50)
+            features["mc_1d_q95"] = np.percentile(simulated_prices, 95)
+
+            # Expected value and return
+            expected_value = simulated_prices.mean()
+            features["mc_1d_expected_value"] = expected_value
+            features["mc_1d_return_pct"] = (
+                (expected_value - current_price) / current_price
+            ) * 100
+
+            # Probability of breakeven (positive return)
+            features["mc_1d_prob_breakeven"] = np.mean(simulated_prices > current_price)
+
+            return features
+
+        except Exception as e:
+            # Return None on any error - will be handled gracefully
+            return None
+
+    def add_mc_features(self, df, price_col="close"):
+        """
+        Add Monte Carlo features to DataFrame using rolling window.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with price data
+            price_col (str): Name of price column to use
+
         Returns:
             pd.DataFrame: DataFrame with MC features added
         """
-        df_mod = df.copy()
-        
-        # Get all MC features for all horizons
-        mc_features = get_mc_features_multiple_horizons(
-            ticker=ticker,
-            start_date=self.start_date,
-            horizons=self.horizons,
-            iterations=self.iterations
-        )
-        
-        # Add features as columns (same value for all rows)
-        for feature_name, feature_value in mc_features.items():
-            df_mod[feature_name] = feature_value
-        
-        return df_mod
-    
-    @staticmethod
-    def get_feature_names(horizons=None):
+        df_modified = df.copy()
+
+        # Initialize feature columns with NaN
+        for feature_name in self.features:
+            df_modified[feature_name] = np.nan
+
+        # Also add expected_value if not in feature list (used internally)
+        if "mc_1d_expected_value" not in df_modified.columns:
+            df_modified["mc_1d_expected_value"] = np.nan
+
+        # Calculate features for each row after threshold
+        for idx in range(self.min_data_threshold, len(df_modified)):
+            # Get rolling window
+            window_start = idx - self.window_size
+            price_window = df_modified[price_col].iloc[window_start:idx]
+
+            # Calculate features
+            features = self.calculate_mc_features_for_window(price_window)
+
+            if features is not None:
+                # Assign features to current row
+                for feature_name, feature_value in features.items():
+                    if feature_name in df_modified.columns:
+                        df_modified.loc[df_modified.index[idx], feature_name] = (
+                            feature_value
+                        )
+
+        return df_modified
+
+    def validate_features(self, df):
         """
-        Get list of Monte Carlo feature names.
-        
+        Validate MC features for data quality.
+
         Parameters:
-            horizons (list): List of forecast horizons
-        
+            df (pd.DataFrame): DataFrame with MC features
+
         Returns:
-            list: Feature names
+            dict: Validation report
         """
-        horizons = horizons or [1, 3, 7, 15, 30, 45]
-        features = []
-        
-        for days in horizons:
-            features.extend([
-                f'mc_{days}d_expected_value',
-                f'mc_{days}d_return_pct',
-                f'mc_{days}d_prob_breakeven',
-                f'mc_{days}d_current_price',
-                f'mc_{days}d_q0_5',
-                f'mc_{days}d_q1',
-                f'mc_{days}d_q5',
-                f'mc_{days}d_q10',
-                f'mc_{days}d_q25',
-                f'mc_{days}d_q50',
-                f'mc_{days}d_q75',
-                f'mc_{days}d_q95',
-            ])
-        
-        return features
+        report = {"total_rows": len(df), "valid_rows": 0, "nan_rows": 0, "errors": []}
+
+        # Count valid rows
+        mc_cols = [col for col in df.columns if col.startswith("mc_1d_")]
+        valid_mask = df[mc_cols].notna().all(axis=1)
+        report["valid_rows"] = valid_mask.sum()
+        report["nan_rows"] = len(df) - report["valid_rows"]
+
+        # Check quantile ordering
+        if "mc_1d_q1" in df.columns and "mc_1d_q95" in df.columns:
+            valid_data = df[valid_mask]
+            ordering_violations = (
+                (valid_data["mc_1d_q1"] >= valid_data["mc_1d_q5"])
+                | (valid_data["mc_1d_q5"] >= valid_data["mc_1d_q10"])
+                | (valid_data["mc_1d_q10"] >= valid_data["mc_1d_q50"])
+                | (valid_data["mc_1d_q50"] >= valid_data["mc_1d_q95"])
+            ).sum()
+
+            if ordering_violations > 0:
+                report["errors"].append(
+                    f"Quantile ordering violations: {ordering_violations}"
+                )
+
+        # Check probability bounds
+        if "mc_1d_prob_breakeven" in df.columns:
+            valid_data = df[valid_mask]
+            prob_violations = (
+                (valid_data["mc_1d_prob_breakeven"] < 0)
+                | (valid_data["mc_1d_prob_breakeven"] > 1)
+            ).sum()
+
+            if prob_violations > 0:
+                report["errors"].append(f"Probability out of bounds: {prob_violations}")
+
+        # Check for infinite values
+        inf_count = np.isinf(df[mc_cols]).sum().sum()
+        if inf_count > 0:
+            report["errors"].append(f"Infinite values detected: {inf_count}")
+
+        return report
+
+    def print_feature_summary(self, df):
+        """
+        Print summary statistics of MC features.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame with MC features
+        """
+        print("\nMC Feature Statistics:")
+        print("-" * 60)
+
+        mc_cols = [col for col in df.columns if col.startswith("mc_1d_")]
+
+        for col in mc_cols:
+            valid_data = df[col].dropna()
+            if len(valid_data) > 0:
+                print(
+                    f"{col:30s}: [{valid_data.min():8.2f}, {valid_data.max():8.2f}], "
+                    f"mean={valid_data.mean():8.2f}"
+                )
+            else:
+                print(f"{col:30s}: No valid data")
