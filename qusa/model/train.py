@@ -18,6 +18,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 # define allowed features for training
+# define allowed features for training
 SAFE_FEATURES = [
     "52_week_high_proximity",
     "52_week_low_proximity",
@@ -47,6 +48,14 @@ SAFE_FEATURES = [
     "is_oct",
     "is_nov",
     "is_dec",
+    # Monte Carlo features
+    "mc_1d_q1",
+    "mc_1d_q5",
+    "mc_1d_q10",
+    "mc_1d_q50",
+    "mc_1d_q95",
+    "mc_1d_return_pct",
+    "mc_1d_prob_breakeven",
 ]
 
 
@@ -68,6 +77,7 @@ def get_safe_features(include_monte_carlo=True, mc_horizons=None):
 
     # remove duplicates while preserving order
     return list(dict.fromkeys(features))
+
 
 # confirm no duplicate features
 SAFE_FEATURES = list(dict.fromkeys(SAFE_FEATURES))
@@ -113,9 +123,10 @@ class OvernightDirectionModel:
             mc_horizons = mc_conf.get("horizons", None)
 
         # set feature names at runtime using lazy importer
-        self.feature_names = get_safe_features(include_monte_carlo=include_mc, mc_horizons=mc_horizons)
+        self.feature_names = get_safe_features(
+            include_monte_carlo=include_mc, mc_horizons=mc_horizons
+        )
 
-        
     @staticmethod
     def load_data(data_path):
         """
