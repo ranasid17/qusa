@@ -92,6 +92,72 @@ def save_backtest_artifacts(backtester, metrics, output_dir, ticker, logger, con
     return
 
 
+def log_experiment_results(ticker, metrics, has_mc_features, config, logger):
+    """
+    Log experiment results to experiments.csv.
+
+    Parameters:
+        ticker (str): Stock ticker
+        metrics (dict): Backtest metrics
+        has_mc_features (bool): Whether MC features were used
+        config (dict): Configuration dictionary
+        logger (logging.Logger): Logger instance
+    """
+    try:
+        from datetime import datetime
+        import csv
+
+        # Prepare log entry
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        mc_config = config.get("monte_carlo", {})
+        mc_enabled = has_mc_features and mc_config.get("enabled", False)
+        mc_window = mc_config.get("window_size", "NA") if mc_enabled else "NA"
+        mc_iterations = mc_config.get("iterations", "NA") if mc_enabled else "NA"
+
+        # Note: Evaluation metrics would need to be passed in or loaded
+        # For now, using NA for metrics not available during backtest
+        row = {
+            "timestamp": timestamp,
+            "experiment_name": "mc_enhanced" if has_mc_features else "baseline",
+            "has_mc_features": str(has_mc_features).lower(),
+            "ticker": ticker,
+            "accuracy": "NA",  # Would need evaluation results
+            "precision": "NA",
+            "recall": "NA",
+            "f1": "NA",
+            "high_conf_acc": "NA",
+            "high_conf_cov": "NA",
+            "backtest_sharpe": f"{metrics.get('sharpe_ratio', 0):.4f}",
+            "backtest_return": f"{metrics.get('strategy_return', 0):.4f}",
+            "backtest_alpha": f"{metrics.get('alpha', 0):.4f}",
+            "max_drawdown": f"{metrics.get('max_draw_down', 0):.4f}",
+            "mc_enabled": str(mc_enabled).lower(),
+            "mc_window_size": mc_window,
+            "mc_iterations": mc_iterations,
+            "notes": "MC POC - 7 features" if has_mc_features else "Baseline run",
+        }
+
+        # Ensure logs directory exists
+        log_path = Path(PROJECT_ROOT) / "logs" / "experiments.csv"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Check if file exists
+        file_exists = log_path.exists()
+
+        # Append to CSV
+        with open(log_path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=row.keys())
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(row)
+
+        logger.info(f"✓ Experiment logged to {log_path}")
+
+    except Exception as e:
+        logger.warning(f"⚠ Could not log experiment: {e}")
+
+
 def main():
     """
     Main execution script.
@@ -184,6 +250,11 @@ def main():
                 )
 
             success_count += 1
+
+            # Log experiment (add after save_backtest_artifacts call)
+            # Detect if MC features are present
+            has_mc = "mc_1d_q5" in backtester.data.columns
+            log_experiment_results(ticker, metrics, has_mc, config, logger)
 
         except Exception as e:
             logger.error(f"✗ Error backtesting {ticker}: {e}", exc_info=True)

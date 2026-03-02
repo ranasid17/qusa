@@ -143,6 +143,26 @@ defaults:
 # Full modeling pipeline settings
 # ------------------
 pipeline:
-  skip_fe: false                          # Skip feature engineering
-  skip_clustering: false                  # Skip clustering analysis
-  skip_backtest: false                    # Skip backtesting
+  skip_fe: false
+  skip_clustering: false
+  skip_backtest: false
+
+
+# ------------------
+# Monte Carlo feature engineering
+# ------------------
+monte_carlo:
+  enabled: true                    # Master toggle for MC features
+  window_size: 252                 # Rolling window size (trading days)
+  iterations: 1000                 # Number of simulation paths per day
+  random_seed: 42                  # Fixed seed for reproducibility
+  min_data_threshold: 252          # Start calculating after this many rows
+
+  features:                        # Which MC statistics to generate
+    - mc_1d_q1                     # 1st percentile (extreme downside)
+    - mc_1d_q5                     # 5th percentile (tail risk)
+    - mc_1d_q10                    # 10th percentile (moderate downside)
+    - mc_1d_q50                    # 50th percentile (median)
+    - mc_1d_q95                    # 95th percentile (upside potential)
+    - mc_1d_return_pct             # Expected return percentage
+    - mc_1d_prob_breakeven         # Probability of positive return
